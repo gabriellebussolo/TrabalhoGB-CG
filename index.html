@@ -13,6 +13,14 @@
         width: 100vw;
         height: 100vh;
       }
+      .files{
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 5px;
+        border-radius: 8px;
+      }
       .controls {
         position: fixed;
         top: 10px;
@@ -21,12 +29,19 @@
         padding: 10px;
         border-radius: 8px;
       }
+      
     </style>
   </head>
   <body>
     <canvas id="glcanvas"></canvas>
 
+    <div class="files">
+      <input type="file" id="configFile" onChange="handleFile(this.files)">
+
+    </div>
+
     <div class="controls">
+
       <h4>Move</h4>
       <label
         >X:
