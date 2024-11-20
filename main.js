@@ -259,6 +259,9 @@ objects[1].position = [ 1.5, 0.0, 0.0 ];  // Triângulo à direita
       cameraViewX,
       cameraViewY,
       cameraViewZ,
+      45,
+      0.1,
+      100.0,
       selectedObject
     );
     requestAnimationFrame(render);
@@ -314,6 +317,9 @@ function drawScene(
   cameraViewX,
   cameraViewY,
   cameraViewZ,
+  fov,
+  zNear,
+  zFar,
   selectedObject
 ) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -325,10 +331,10 @@ function drawScene(
   const projectionMatrix = mat4.create();
   mat4.perspective(
     projectionMatrix,
-    (45 * Math.PI) / 180,
+    (fov * Math.PI) / 180,
     gl.canvas.clientWidth / gl.canvas.clientHeight,
-    0.1,
-    100.0
+    zNear,
+    zFar
   );
 
   const viewMatrix = mat4.create();
