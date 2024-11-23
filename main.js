@@ -55,35 +55,38 @@ document.addEventListener('DOMContentLoaded', () => {
         uniform float uShininess;
         uniform bool uIsSelected; 
   
+        uniform float uKa; 
+        uniform float uKd; 
+        uniform float uKs; 
+
         void main(void) {
             vec3 norm = normalize(vNormal);
             vec3 lightDir = normalize(uLightPosition - vFragPos);
-  
+
             // Componente Ambiente
-            float ambientStrength = 0.1;
-            vec3 ambient = ambientStrength * uLightColor;
-  
+            vec3 ambient = uKa * uLightColor;
+
             // Componente Difuso
             float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = diff * uLightColor;
-  
+            vec3 diffuse = uKd * diff * uLightColor;
+
             // Componente Especular
-            float specularStrength = 0.5;
             vec3 viewDir = normalize(-vFragPos);
             vec3 reflectDir = reflect(-lightDir, norm);
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-            vec3 specular = specularStrength * spec * uLightColor;
-  
-            // Cor do objeto, destaque se for o selecionado
+            vec3 specular = uKs * spec * uLightColor;
+
+            // Cor do objeto e combinação dos componentes
             vec3 finalColor = uObjectColor;
             if (uIsSelected) {
                 finalColor = vec3(1.0, 0.0, 0.0); // Cor vermelha para o objeto selecionado
             }
-  
+              
             // Combinação dos componentes
             vec3 result = (ambient + diffuse + specular) * finalColor;
             gl_FragColor = vec4(result, 1.0);
         }
+
     `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
@@ -225,6 +228,37 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraViewY = 0.0,
     cameraViewZ = 0.0;
 
+  // Set light properties
+  gl.useProgram(programInfo.program);
+
+  const lightPosition = [2.0, 2.0, 2.0]; // Light position in view space
+  const lightColor = [1.0, 1.0, 1.0]; // White light color
+
+  const objectColor = [1.0, 0.5, 0.31]; // Object color
+  const shininess = 32.0; // Shininess factor
+
+    // Adicionar localizações para Ka, Kd e Ks
+  programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, "uKa");
+  programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, "uKd");
+  programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, "uKs");
+
+  // Configurar os valores de Ka, Kd e Ks
+  var ka = 0.5;
+  var kd = 0.5; 
+  var ks = 0.5; 
+
+  gl.useProgram(programInfo.program);
+  gl.uniform1f(programInfo.uniformLocations.ka, ka);
+  gl.uniform1f(programInfo.uniformLocations.kd, kd);
+  gl.uniform1f(programInfo.uniformLocations.ks, ks);
+
+
+  // Set uniforms
+  gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
+  gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
+  gl.uniform3fv(programInfo.uniformLocations.objectColor, objectColor);
+  gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
+
   const sliders = document.querySelectorAll("input[type='range']");
 
   sliders.forEach((slider) => {
@@ -246,23 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
       if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
       if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
+      if (sliderId == 'lightKs') ks = parseFloat(slider.value);
+      if (sliderId == 'lightKa') ka = parseFloat(slider.value);
+      if (sliderId == 'lightKd') kd = parseFloat(slider.value);
     });
+  
   });
-
-  // Set light properties
-  gl.useProgram(programInfo.program);
-
-  const lightPosition = [2.0, 2.0, 2.0]; // Light position in view space
-  const lightColor = [1.0, 1.0, 1.0]; // White light color
-
-  const objectColor = [1.0, 0.5, 0.31]; // Object color
-  const shininess = 32.0; // Shininess factor
-
-  // Set uniforms
-  gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
-  gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
-  gl.uniform3fv(programInfo.uniformLocations.objectColor, objectColor);
-  gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
 
   function render() {
     drawScene(
@@ -275,6 +298,9 @@ document.addEventListener('DOMContentLoaded', () => {
       cameraViewX,
       cameraViewY,
       cameraViewZ,
+      ka,
+      ks,
+      kd,
       45,
       0.1,
       100.0,
@@ -334,6 +360,9 @@ function drawScene(
   cameraViewX,
   cameraViewY,
   cameraViewZ,
+  ka,
+  ks,
+  kd,
   fov,
   zNear,
   zFar,
@@ -373,6 +402,11 @@ function drawScene(
     false,
     viewMatrix
   );
+
+  // Atualizar os valores Ka, Kd, Ks no shader
+  gl.uniform1f(programInfo.uniformLocations.ka, ka);
+  gl.uniform1f(programInfo.uniformLocations.kd, kd);
+  gl.uniform1f(programInfo.uniformLocations.ks, ks);
 
   objects.forEach((obj, index) => {
     const isSelected = index === selectedObject;
