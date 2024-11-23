@@ -1,23 +1,23 @@
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM fully loaded and parsed");
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM fully loaded and parsed');
 
-  const canvas = document.getElementById("glcanvas");
+  const canvas = document.getElementById('glcanvas');
   resizeCanvas(canvas);
-  window.addEventListener("resize", () => resizeCanvas(canvas));
+  window.addEventListener('resize', () => resizeCanvas(canvas));
 
-  const gl = canvas.getContext("webgl");
+  const gl = canvas.getContext('webgl');
 
   if (!gl) {
-    console.error("WebGL not supported, falling back on experimental-webgl");
-    gl = canvas.getContext("experimental-webgl");
+    console.error('WebGL not supported, falling back on experimental-webgl');
+    gl = canvas.getContext('experimental-webgl');
   }
 
   if (!gl) {
-    alert("Your browser does not support WebGL");
+    alert('Your browser does not support WebGL');
     return;
   }
 
-  console.log("WebGL context obtained");
+  console.log('WebGL context obtained');
 
   // Vertex shader program
   const vsSource = `
@@ -90,27 +90,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
-      vertexNormal: gl.getAttribLocation(shaderProgram, "aVertexNormal"),
+      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(
         shaderProgram,
-        "uProjectionMatrix"
+        'uProjectionMatrix'
       ),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
-      viewMatrix: gl.getUniformLocation(shaderProgram, "uViewMatrix"),
-      normalMatrix: gl.getUniformLocation(shaderProgram, "uNormalMatrix"),
-      lightPosition: gl.getUniformLocation(shaderProgram, "uLightPosition"),
-      lightColor: gl.getUniformLocation(shaderProgram, "uLightColor"),
-      viewPosition: gl.getUniformLocation(shaderProgram, "uViewPosition"),
-      objectColor: gl.getUniformLocation(shaderProgram, "uObjectColor"),
-      shininess: gl.getUniformLocation(shaderProgram, "uShininess"),
-      isSelected: gl.getUniformLocation(shaderProgram, "uIsSelected"),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
+      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
+      lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
+      viewPosition: gl.getUniformLocation(shaderProgram, 'uViewPosition'),
+      objectColor: gl.getUniformLocation(shaderProgram, 'uObjectColor'),
+      shininess: gl.getUniformLocation(shaderProgram, 'uShininess'),
+      isSelected: gl.getUniformLocation(shaderProgram, 'uIsSelected'),
     },
   };
 
-  console.log("Shader program initialized");
+  console.log('Shader program initialized');
 
   // Object structure and initial object load
   const objects = [];
@@ -128,51 +128,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Example OBJ string data
   const objStr1 = [
-    "v 1.0 -1.0  1.0",
-    "v 1.0 -1.0 -1.0",
-    "v -1.0 -1.0 -1.0",
-    "v -1.0 -1.0  1.0",
-    "v 1.0  1.0  1.0",
-    "v 1.0  1.0 -1.0",
-    "v -1.0  1.0 -1.0",
-    "v -1.0  1.0  1.0",
-    "vn 0.0 -1.0 0.0",
-    "vn 0.0  1.0 0.0",
-    "vn 1.0  0.0 0.0",
-    "vn -1.0  0.0 0.0",
-    "vn 0.0  0.0 1.0",
-    "vn 0.0  0.0 -1.0",
-    "f 1//1 2//1 3//1",
-    "f 1//1 3//1 4//1",
-    "f 5//2 8//2 7//2",
-    "f 5//2 7//2 6//2",
-    "f 1//3 5//3 6//3",
-    "f 1//3 6//3 2//3",
-    "f 2//6 6//6 7//6",
-    "f 2//6 7//6 3//6",
-    "f 3//4 7//4 8//4",
-    "f 3//4 8//4 4//4",
-    "f 4//5 8//5 5//5",
-    "f 4//5 5//5 1//5",
-  ].join("\n");
+    'v 1.0 -1.0  1.0',
+    'v 1.0 -1.0 -1.0',
+    'v -1.0 -1.0 -1.0',
+    'v -1.0 -1.0  1.0',
+    'v 1.0  1.0  1.0',
+    'v 1.0  1.0 -1.0',
+    'v -1.0  1.0 -1.0',
+    'v -1.0  1.0  1.0',
+    'vn 0.0 -1.0 0.0',
+    'vn 0.0  1.0 0.0',
+    'vn 1.0  0.0 0.0',
+    'vn -1.0  0.0 0.0',
+    'vn 0.0  0.0 1.0',
+    'vn 0.0  0.0 -1.0',
+    'f 1//1 2//1 3//1',
+    'f 1//1 3//1 4//1',
+    'f 5//2 8//2 7//2',
+    'f 5//2 7//2 6//2',
+    'f 1//3 5//3 6//3',
+    'f 1//3 6//3 2//3',
+    'f 2//6 6//6 7//6',
+    'f 2//6 7//6 3//6',
+    'f 3//4 7//4 8//4',
+    'f 3//4 8//4 4//4',
+    'f 4//5 8//5 5//5',
+    'f 4//5 5//5 1//5',
+  ].join('\n');
 
   const objStr2 = [
     // Vértices
-    "v  0.0  1.0  0.0",
-    "v -1.0 -1.0 -1.0",
-    "v  1.0 -1.0 -1.0",
-    "v  1.0 -1.0  1.0",
-    "v -1.0 -1.0  1.0",
-    "vn  0.0  0.4472 -0.8944",
-    "vn  0.8944  0.4472  0.0",
-    "vn -0.8944  0.4472  0.0",
-    "vn  0.0 -1.0  0.0",
-    "f 1//1 2//1 3//1",
-    "f 1//2 3//2 4//2",
-    "f 1//3 4//3 5//3",
-    "f 2//4 5//4 4//4",
-    "f 2//4 4//4 3//4",
-  ].join("\n");
+    'v  0.0  1.0  0.0',
+    'v -1.0 -1.0 -1.0',
+    'v  1.0 -1.0 -1.0',
+    'v  1.0 -1.0  1.0',
+    'v -1.0 -1.0  1.0',
+    'vn  0.0  0.4472 -0.8944',
+    'vn  0.8944  0.4472  0.0',
+    'vn -0.8944  0.4472  0.0',
+    'vn  0.0 -1.0  0.0',
+    'f 1//1 2//1 3//1',
+    'f 1//2 3//2 4//2',
+    'f 1//3 4//3 5//3',
+    'f 2//4 5//4 4//4',
+    'f 2//4 4//4 3//4',
+  ].join('\n');
 
   const curve = {
     controlPoints: [], // Pontos de controle da curva
@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Gera pontos de controle da curva
-  generateHeartControlPoints(20, curve.controlPoints);
+  generateInfiniteControlPoints(20, curve.controlPoints);
 
   // Gera pontos da curva de Bézier
   let numCurvePoints = 100; // Quantidade de pontos por segmento na curva
@@ -202,15 +202,15 @@ document.addEventListener("DOMContentLoaded", () => {
   objects[0].position = [-1.5, 0.0, 0.0]; // Cubo à esquerda
   objects[1].position = [1.5, 0.0, 0.0]; // Triângulo à direita
 
-  console.log("Objects loaded:", objects);
+  console.log('Objects loaded:', objects);
 
   let selectedObject = 0;
 
   // Listen for key presses to change selected object
-  document.addEventListener("keydown", (event) => {
-    if (event.code === "ArrowRight") {
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'ArrowRight') {
       selectedObject = (selectedObject + 1) % objects.length;
-    } else if (event.code === "ArrowLeft") {
+    } else if (event.code === 'ArrowLeft') {
       selectedObject = (selectedObject - 1 + objects.length) % objects.length;
     }
     console.log(`Selected Object: ${selectedObject}`);
@@ -228,24 +228,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const sliders = document.querySelectorAll("input[type='range']");
 
   sliders.forEach((slider) => {
-    slider.addEventListener("input", function () {
+    slider.addEventListener('input', function () {
       const sliderId = slider.id;
       const obj = objects[selectedObject];
-      if (sliderId === "moveX") obj.position[0] = parseFloat(slider.value);
-      if (sliderId === "moveY") obj.position[1] = parseFloat(slider.value);
-      if (sliderId === "moveZ") obj.position[2] = parseFloat(slider.value);
-      if (sliderId === "rotateX") obj.rotation[0] = parseFloat(slider.value);
-      if (sliderId === "rotateY") obj.rotation[1] = parseFloat(slider.value);
-      if (sliderId === "rotateZ") obj.rotation[2] = parseFloat(slider.value);
-      if (sliderId === "scaleX") obj.scale[0] = parseFloat(slider.value);
-      if (sliderId === "scaleY") obj.scale[1] = parseFloat(slider.value);
-      if (sliderId === "scaleZ") obj.scale[2] = parseFloat(slider.value);
-      if (sliderId == "cameraPosX") cameraPosX = parseFloat(slider.value);
-      if (sliderId == "cameraPosY") cameraPosY = parseFloat(slider.value);
-      if (sliderId == "cameraPosZ") cameraPosZ = parseFloat(slider.value);
-      if (sliderId == "cameraViewX") cameraViewX = parseFloat(slider.value);
-      if (sliderId == "cameraViewY") cameraViewY = parseFloat(slider.value);
-      if (sliderId == "cameraViewZ") cameraViewZ = parseFloat(slider.value);
+      if (sliderId === 'moveX') obj.position[0] = parseFloat(slider.value);
+      if (sliderId === 'moveY') obj.position[1] = parseFloat(slider.value);
+      if (sliderId === 'moveZ') obj.position[2] = parseFloat(slider.value);
+      if (sliderId === 'rotateX') obj.rotation[0] = parseFloat(slider.value);
+      if (sliderId === 'rotateY') obj.rotation[1] = parseFloat(slider.value);
+      if (sliderId === 'rotateZ') obj.rotation[2] = parseFloat(slider.value);
+      if (sliderId === 'scaleX') obj.scale[0] = parseFloat(slider.value);
+      if (sliderId === 'scaleY') obj.scale[1] = parseFloat(slider.value);
+      if (sliderId === 'scaleZ') obj.scale[2] = parseFloat(slider.value);
+      if (sliderId == 'cameraPosX') cameraPosX = parseFloat(slider.value);
+      if (sliderId == 'cameraPosY') cameraPosY = parseFloat(slider.value);
+      if (sliderId == 'cameraPosZ') cameraPosZ = parseFloat(slider.value);
+      if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
+      if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
+      if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
     });
   });
 
@@ -278,9 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
       45,
       0.1,
       100.0,
-      selectedObject,
-      index,
-      curve
+      selectedObject
     );
     index = moveObjectInCurve(objects[0], curve, index);
     requestAnimationFrame(render);
@@ -300,7 +298,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     console.error(
-      "Unable to initialize the shader program: " +
+      'Unable to initialize the shader program: ' +
         gl.getProgramInfoLog(shaderProgram)
     );
     return null;
@@ -317,7 +315,7 @@ function loadShader(gl, type, source) {
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     console.error(
-      "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader)
+      'An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader)
     );
     gl.deleteShader(shader);
     return null;
@@ -339,9 +337,7 @@ function drawScene(
   fov,
   zNear,
   zFar,
-  selectedObject,
-  index,
-  curve
+  selectedObject
 ) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
@@ -465,24 +461,29 @@ function drawScene(
   });
 }
 
-function generateHeartControlPoints(numPoints, controlPoints) {
+function resizeCanvas(canvas) {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const gl = canvas.getContext('webgl');
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+function generateInfiniteControlPoints(numPoints, controlPoints) {
   // Define o intervalo para t: de 0 a 2 * PI, dividido em numPoints
   step = (2.0 * 3.14159) / (numPoints - 1.0);
+
+  let scale = 1;
 
   for (let i = 0; i < numPoints - 1; i++) {
     let t = i * step;
 
     // Calcula x(t) e y(t) usando as fórmulas paramétricas
-    x = 16 * Math.sin(t) ** 3;
-    y =
-      13 * Math.cos(t) -
-      5 * Math.cos(2 * t) -
-      2 * Math.cos(3 * t) -
-      Math.cos(4 * t);
+    x = (scale * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
+    y = (scale * Math.sin(t) * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
 
-    // Normaliza os pontos para mantê-los dentro de [-1, 1] no espaço 3D
-    x /= 16.0; // Dividir por 16 para normalizar x entre -1 e 1
-    y /= 16.0; // Dividir por 16 para normalizar y aproximadamente entre -1 e 1
+    // Aumenta o X e Y para a curva ficar maior e melhor de visualizar
+    x *= 2.0;
+    y *= 2.0;
     y += 0.15;
 
     point = vec3.create();
@@ -492,13 +493,6 @@ function generateHeartControlPoints(numPoints, controlPoints) {
     controlPoints.push(point);
   }
   controlPoints.push(controlPoints[0]);
-}
-
-function resizeCanvas(canvas) {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const gl = canvas.getContext("webgl");
-  gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
 function initializeBernsteinMatrix(matrix) {
@@ -576,7 +570,6 @@ function multiplyVec4ByMat4x3(mat4x3, vec, resultVec) {
 }
 
 function moveObjectInCurve(object, curve, index) {
-  console.log(index);
   let nextPos = vec3.clone(curve.curvePoints[index]);
 
   object.position[0] = nextPos[0];
