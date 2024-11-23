@@ -1,116 +1,116 @@
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM fully loaded and parsed');
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM fully loaded and parsed");
 
-  const canvas = document.getElementById('glcanvas');
+  const canvas = document.getElementById("glcanvas");
   resizeCanvas(canvas);
-  window.addEventListener('resize', () => resizeCanvas(canvas));
+  window.addEventListener("resize", () => resizeCanvas(canvas));
 
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
 
   if (!gl) {
-    console.error('WebGL not supported, falling back on experimental-webgl');
-    gl = canvas.getContext('experimental-webgl');
+    console.error("WebGL not supported, falling back on experimental-webgl");
+    gl = canvas.getContext("experimental-webgl");
   }
 
   if (!gl) {
-    alert('Your browser does not support WebGL');
+    alert("Your browser does not support WebGL");
     return;
   }
 
-  console.log('WebGL context obtained');
+  console.log("WebGL context obtained");
 
   // Vertex shader program
   const vsSource = `
-        attribute vec4 aVertexPosition;
-        attribute vec3 aVertexNormal;
-
-        uniform mat4 uNormalMatrix;
-        uniform mat4 uModelViewMatrix;
-        uniform mat4 uProjectionMatrix;
-        uniform mat4 uViewMatrix;
-
-        varying vec3 vNormal;
-        varying vec3 vFragPos;
-
-        void main(void) {
-          vec4 fragPos = uModelViewMatrix * aVertexPosition;
-          vFragPos = fragPos.xyz;
-          vNormal = mat3(uNormalMatrix) * aVertexNormal;
-          gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
-      }
-  `;
+          attribute vec4 aVertexPosition;
+          attribute vec3 aVertexNormal;
+  
+          uniform mat4 uNormalMatrix;
+          uniform mat4 uModelViewMatrix;
+          uniform mat4 uProjectionMatrix;
+          uniform mat4 uViewMatrix;
+  
+          varying vec3 vNormal;
+          varying vec3 vFragPos;
+  
+          void main(void) {
+            vec4 fragPos = uModelViewMatrix * aVertexPosition;
+            vFragPos = fragPos.xyz;
+            vNormal = mat3(uNormalMatrix) * aVertexNormal;
+            gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
+        }
+    `;
 
   // Fragment shader program
   const fsSource = `
-      precision highp float;
-
-      varying vec3 vNormal;
-      varying vec3 vFragPos;
-
-      uniform vec3 uLightPosition;
-      uniform vec3 uLightColor;
-      uniform vec3 uViewPosition;
-
-      uniform vec3 uObjectColor;
-      uniform float uShininess;
-      uniform bool uIsSelected; 
-
-      void main(void) {
-          vec3 norm = normalize(vNormal);
-          vec3 lightDir = normalize(uLightPosition - vFragPos);
-
-          // Componente Ambiente
-          float ambientStrength = 0.1;
-          vec3 ambient = ambientStrength * uLightColor;
-
-          // Componente Difuso
-          float diff = max(dot(norm, lightDir), 0.0);
-          vec3 diffuse = diff * uLightColor;
-
-          // Componente Especular
-          float specularStrength = 0.5;
-          vec3 viewDir = normalize(-vFragPos);
-          vec3 reflectDir = reflect(-lightDir, norm);
-          float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-          vec3 specular = specularStrength * spec * uLightColor;
-
-          // Cor do objeto, destaque se for o selecionado
-          vec3 finalColor = uObjectColor;
-          if (uIsSelected) {
-              finalColor = vec3(1.0, 0.0, 0.0); // Cor vermelha para o objeto selecionado
-          }
-
-          // Combinação dos componentes
-          vec3 result = (ambient + diffuse + specular) * finalColor;
-          gl_FragColor = vec4(result, 1.0);
-      }
-  `;
+        precision highp float;
+  
+        varying vec3 vNormal;
+        varying vec3 vFragPos;
+  
+        uniform vec3 uLightPosition;
+        uniform vec3 uLightColor;
+        uniform vec3 uViewPosition;
+  
+        uniform vec3 uObjectColor;
+        uniform float uShininess;
+        uniform bool uIsSelected; 
+  
+        void main(void) {
+            vec3 norm = normalize(vNormal);
+            vec3 lightDir = normalize(uLightPosition - vFragPos);
+  
+            // Componente Ambiente
+            float ambientStrength = 0.1;
+            vec3 ambient = ambientStrength * uLightColor;
+  
+            // Componente Difuso
+            float diff = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = diff * uLightColor;
+  
+            // Componente Especular
+            float specularStrength = 0.5;
+            vec3 viewDir = normalize(-vFragPos);
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+            vec3 specular = specularStrength * spec * uLightColor;
+  
+            // Cor do objeto, destaque se for o selecionado
+            vec3 finalColor = uObjectColor;
+            if (uIsSelected) {
+                finalColor = vec3(1.0, 0.0, 0.0); // Cor vermelha para o objeto selecionado
+            }
+  
+            // Combinação dos componentes
+            vec3 result = (ambient + diffuse + specular) * finalColor;
+            gl_FragColor = vec4(result, 1.0);
+        }
+    `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+      vertexNormal: gl.getAttribLocation(shaderProgram, "aVertexNormal"),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(
         shaderProgram,
-        'uProjectionMatrix'
+        "uProjectionMatrix"
       ),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
-      viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
-      lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
-      viewPosition: gl.getUniformLocation(shaderProgram, 'uViewPosition'),
-      objectColor: gl.getUniformLocation(shaderProgram, 'uObjectColor'),
-      shininess: gl.getUniformLocation(shaderProgram, 'uShininess'),
-      isSelected: gl.getUniformLocation(shaderProgram, 'uIsSelected'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
+      viewMatrix: gl.getUniformLocation(shaderProgram, "uViewMatrix"),
+      normalMatrix: gl.getUniformLocation(shaderProgram, "uNormalMatrix"),
+      lightPosition: gl.getUniformLocation(shaderProgram, "uLightPosition"),
+      lightColor: gl.getUniformLocation(shaderProgram, "uLightColor"),
+      viewPosition: gl.getUniformLocation(shaderProgram, "uViewPosition"),
+      objectColor: gl.getUniformLocation(shaderProgram, "uObjectColor"),
+      shininess: gl.getUniformLocation(shaderProgram, "uShininess"),
+      isSelected: gl.getUniformLocation(shaderProgram, "uIsSelected"),
     },
   };
 
-  console.log('Shader program initialized');
+  console.log("Shader program initialized");
 
   // Object structure and initial object load
   const objects = [];
@@ -128,73 +128,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Example OBJ string data
   const objStr1 = [
-    'v 1.0 -1.0  1.0',
-    'v 1.0 -1.0 -1.0',
-    'v -1.0 -1.0 -1.0',
-    'v -1.0 -1.0  1.0',
-    'v 1.0  1.0  1.0',
-    'v 1.0  1.0 -1.0',
-    'v -1.0  1.0 -1.0',
-    'v -1.0  1.0  1.0',
-    'vn 0.0 -1.0 0.0',
-    'vn 0.0  1.0 0.0',
-    'vn 1.0  0.0 0.0',
-    'vn -1.0  0.0 0.0',
-    'vn 0.0  0.0 1.0',
-    'vn 0.0  0.0 -1.0',
-    'f 1//1 2//1 3//1',
-    'f 1//1 3//1 4//1',
-    'f 5//2 8//2 7//2',
-    'f 5//2 7//2 6//2',
-    'f 1//3 5//3 6//3',
-    'f 1//3 6//3 2//3',
-    'f 2//6 6//6 7//6',
-    'f 2//6 7//6 3//6',
-    'f 3//4 7//4 8//4',
-    'f 3//4 8//4 4//4',
-    'f 4//5 8//5 5//5',
-    'f 4//5 5//5 1//5',
-  ].join('\n');
+    "v 1.0 -1.0  1.0",
+    "v 1.0 -1.0 -1.0",
+    "v -1.0 -1.0 -1.0",
+    "v -1.0 -1.0  1.0",
+    "v 1.0  1.0  1.0",
+    "v 1.0  1.0 -1.0",
+    "v -1.0  1.0 -1.0",
+    "v -1.0  1.0  1.0",
+    "vn 0.0 -1.0 0.0",
+    "vn 0.0  1.0 0.0",
+    "vn 1.0  0.0 0.0",
+    "vn -1.0  0.0 0.0",
+    "vn 0.0  0.0 1.0",
+    "vn 0.0  0.0 -1.0",
+    "f 1//1 2//1 3//1",
+    "f 1//1 3//1 4//1",
+    "f 5//2 8//2 7//2",
+    "f 5//2 7//2 6//2",
+    "f 1//3 5//3 6//3",
+    "f 1//3 6//3 2//3",
+    "f 2//6 6//6 7//6",
+    "f 2//6 7//6 3//6",
+    "f 3//4 7//4 8//4",
+    "f 3//4 8//4 4//4",
+    "f 4//5 8//5 5//5",
+    "f 4//5 5//5 1//5",
+  ].join("\n");
 
   const objStr2 = [
     // Vértices
-    'v  0.0  1.0  0.0',  
-    'v -1.0 -1.0 -1.0',   
-    'v  1.0 -1.0 -1.0',  
-    'v  1.0 -1.0  1.0',  
-    'v -1.0 -1.0  1.0', 
-    'vn  0.0  0.4472 -0.8944',  
-    'vn  0.8944  0.4472  0.0',  
-    'vn -0.8944  0.4472  0.0', 
-    'vn  0.0 -1.0  0.0',       
-    'f 1//1 2//1 3//1',  
-    'f 1//2 3//2 4//2',   
-    'f 1//3 4//3 5//3',  
-    'f 2//4 5//4 4//4',   
-    'f 2//4 4//4 3//4',   
-  ].join('\n');
+    "v  0.0  1.0  0.0",
+    "v -1.0 -1.0 -1.0",
+    "v  1.0 -1.0 -1.0",
+    "v  1.0 -1.0  1.0",
+    "v -1.0 -1.0  1.0",
+    "vn  0.0  0.4472 -0.8944",
+    "vn  0.8944  0.4472  0.0",
+    "vn -0.8944  0.4472  0.0",
+    "vn  0.0 -1.0  0.0",
+    "f 1//1 2//1 3//1",
+    "f 1//2 3//2 4//2",
+    "f 1//3 4//3 5//3",
+    "f 2//4 5//4 4//4",
+    "f 2//4 4//4 3//4",
+  ].join("\n");
 
-// Carregar os objetos
-objects.push(new SceneObject(gl, objStr1)); // Cubo
-objects.push(new SceneObject(gl, objStr2)); // Triângulo
+  const curve = {
+    controlPoints: [], // Pontos de controle da curva
+    curvePoints: [], // Pontos da curva
+    M: mat4.create(), // Matriz dos coeficientes da curva
+  };
 
-// Definir cores para cada objeto
-objects[0].color = [1.0, 0.5, 0.31]; // Cor para o cubo (laranja)
-objects[1].color = [0.0, 1.0, 0.0]; // Cor para o triângulo (verde)
+  // Gera pontos de controle da curva
+  generateHeartControlPoints(20, curve.controlPoints);
 
-// Posicionar os objetos separadamente
-objects[0].position = [ -1.5, 0.0, 0.0 ]; // Cubo à esquerda
-objects[1].position = [ 1.5, 0.0, 0.0 ];  // Triângulo à direita
+  // Gera pontos da curva de Bézier
+  let numCurvePoints = 100; // Quantidade de pontos por segmento na curva
+  generateBezierCurvePoints(curve, numCurvePoints);
 
-  console.log('Objects loaded:', objects);
+  // Variaveis para movimentar o objeto na tela
+  let index = 0;
+
+  // Carregar os objetos
+  objects.push(new SceneObject(gl, objStr1)); // Cubo
+  objects.push(new SceneObject(gl, objStr2)); // Triângulo
+
+  // Definir cores para cada objeto
+  objects[0].color = [1.0, 0.5, 0.31]; // Cor para o cubo (laranja)
+  objects[1].color = [0.0, 1.0, 0.0]; // Cor para o triângulo (verde)
+
+  // Posicionar os objetos separadamente
+  objects[0].position = [-1.5, 0.0, 0.0]; // Cubo à esquerda
+  objects[1].position = [1.5, 0.0, 0.0]; // Triângulo à direita
+
+  console.log("Objects loaded:", objects);
 
   let selectedObject = 0;
 
   // Listen for key presses to change selected object
-  document.addEventListener('keydown', (event) => {
-    if (event.code === 'ArrowRight') {
+  document.addEventListener("keydown", (event) => {
+    if (event.code === "ArrowRight") {
       selectedObject = (selectedObject + 1) % objects.length;
-    } else if (event.code === 'ArrowLeft') {
+    } else if (event.code === "ArrowLeft") {
       selectedObject = (selectedObject - 1 + objects.length) % objects.length;
     }
     console.log(`Selected Object: ${selectedObject}`);
@@ -212,24 +228,24 @@ objects[1].position = [ 1.5, 0.0, 0.0 ];  // Triângulo à direita
   const sliders = document.querySelectorAll("input[type='range']");
 
   sliders.forEach((slider) => {
-    slider.addEventListener('input', function () {
+    slider.addEventListener("input", function () {
       const sliderId = slider.id;
       const obj = objects[selectedObject];
-      if (sliderId === 'moveX') obj.position[0] = parseFloat(slider.value);
-      if (sliderId === 'moveY') obj.position[1] = parseFloat(slider.value);
-      if (sliderId === 'moveZ') obj.position[2] = parseFloat(slider.value);
-      if (sliderId === 'rotateX') obj.rotation[0] = parseFloat(slider.value);
-      if (sliderId === 'rotateY') obj.rotation[1] = parseFloat(slider.value);
-      if (sliderId === 'rotateZ') obj.rotation[2] = parseFloat(slider.value);
-      if (sliderId === 'scaleX') obj.scale[0] = parseFloat(slider.value);
-      if (sliderId === 'scaleY') obj.scale[1] = parseFloat(slider.value);
-      if (sliderId === 'scaleZ') obj.scale[2] = parseFloat(slider.value);
-      if (sliderId == 'cameraPosX') cameraPosX = parseFloat(slider.value);
-      if (sliderId == 'cameraPosY') cameraPosY = parseFloat(slider.value);
-      if (sliderId == 'cameraPosZ') cameraPosZ = parseFloat(slider.value);
-      if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
-      if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
-      if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
+      if (sliderId === "moveX") obj.position[0] = parseFloat(slider.value);
+      if (sliderId === "moveY") obj.position[1] = parseFloat(slider.value);
+      if (sliderId === "moveZ") obj.position[2] = parseFloat(slider.value);
+      if (sliderId === "rotateX") obj.rotation[0] = parseFloat(slider.value);
+      if (sliderId === "rotateY") obj.rotation[1] = parseFloat(slider.value);
+      if (sliderId === "rotateZ") obj.rotation[2] = parseFloat(slider.value);
+      if (sliderId === "scaleX") obj.scale[0] = parseFloat(slider.value);
+      if (sliderId === "scaleY") obj.scale[1] = parseFloat(slider.value);
+      if (sliderId === "scaleZ") obj.scale[2] = parseFloat(slider.value);
+      if (sliderId == "cameraPosX") cameraPosX = parseFloat(slider.value);
+      if (sliderId == "cameraPosY") cameraPosY = parseFloat(slider.value);
+      if (sliderId == "cameraPosZ") cameraPosZ = parseFloat(slider.value);
+      if (sliderId == "cameraViewX") cameraViewX = parseFloat(slider.value);
+      if (sliderId == "cameraViewY") cameraViewY = parseFloat(slider.value);
+      if (sliderId == "cameraViewZ") cameraViewZ = parseFloat(slider.value);
     });
   });
 
@@ -262,8 +278,11 @@ objects[1].position = [ 1.5, 0.0, 0.0 ];  // Triângulo à direita
       45,
       0.1,
       100.0,
-      selectedObject
+      selectedObject,
+      index,
+      curve
     );
+    index = moveObjectInCurve(objects[0], curve, index);
     requestAnimationFrame(render);
   }
 
@@ -281,7 +300,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     console.error(
-      'Unable to initialize the shader program: ' +
+      "Unable to initialize the shader program: " +
         gl.getProgramInfoLog(shaderProgram)
     );
     return null;
@@ -298,7 +317,7 @@ function loadShader(gl, type, source) {
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     console.error(
-      'An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader)
+      "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader)
     );
     gl.deleteShader(shader);
     return null;
@@ -320,7 +339,9 @@ function drawScene(
   fov,
   zNear,
   zFar,
-  selectedObject
+  selectedObject,
+  index,
+  curve
 ) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
@@ -359,7 +380,7 @@ function drawScene(
 
   objects.forEach((obj, index) => {
     const isSelected = index === selectedObject;
-    gl.uniform1i(programInfo.uniformLocations.isSelected, isSelected ? 1 : 0); 
+    gl.uniform1i(programInfo.uniformLocations.isSelected, isSelected ? 1 : 0);
 
     // Definir a cor do objeto
     gl.uniform3fv(programInfo.uniformLocations.objectColor, obj.color);
@@ -444,9 +465,128 @@ function drawScene(
   });
 }
 
+function generateHeartControlPoints(numPoints, controlPoints) {
+  // Define o intervalo para t: de 0 a 2 * PI, dividido em numPoints
+  step = (2.0 * 3.14159) / (numPoints - 1.0);
+
+  for (let i = 0; i < numPoints - 1; i++) {
+    let t = i * step;
+
+    // Calcula x(t) e y(t) usando as fórmulas paramétricas
+    x = 16 * Math.sin(t) ** 3;
+    y =
+      13 * Math.cos(t) -
+      5 * Math.cos(2 * t) -
+      2 * Math.cos(3 * t) -
+      Math.cos(4 * t);
+
+    // Normaliza os pontos para mantê-los dentro de [-1, 1] no espaço 3D
+    x /= 16.0; // Dividir por 16 para normalizar x entre -1 e 1
+    y /= 16.0; // Dividir por 16 para normalizar y aproximadamente entre -1 e 1
+    y += 0.15;
+
+    point = vec3.create();
+    vec3.set(point, x, y, 0.0);
+
+    // Adiciona o ponto ao vetor de pontos de controle
+    controlPoints.push(point);
+  }
+  controlPoints.push(controlPoints[0]);
+}
+
 function resizeCanvas(canvas) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
   gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+function initializeBernsteinMatrix(matrix) {
+  mat4.set(
+    matrix,
+    -1.0,
+    3.0,
+    -3.0,
+    1.0,
+    3.0,
+    -6.0,
+    3.0,
+    0.0,
+    -3.0,
+    3.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0
+  );
+}
+
+function generateBezierCurvePoints(curve, numPoints) {
+  curve.curvePoints = []; // Limpa quaisquer pontos antigos da curva
+
+  initializeBernsteinMatrix(curve.M);
+  // Calcular os pontos ao longo da curva com base em Bernstein
+  // Loop sobre os pontos de controle em grupos de 4
+
+  let piece = 1.0 / numPoints;
+
+  for (let i = 0; i < curve.controlPoints.length - 3; i += 3) {
+    // Gera pontos para o segmento atual
+    for (let j = 0; j < numPoints; j++) {
+      let t = j * piece;
+
+      // Vetor t para o polinômio de Bernstein
+      vecT = vec4.create();
+      vec4.set(vecT, t * t * t, t * t, t, 1);
+      P0 = vec3.clone(curve.controlPoints[i]);
+      P1 = vec3.clone(curve.controlPoints[i + 1]);
+      P2 = vec3.clone(curve.controlPoints[i + 2]);
+      P3 = vec3.clone(curve.controlPoints[i + 3]);
+
+      const G = [P0, P1, P2, P3];
+
+      // Multiplica a matriz de bernstein com o vetor T
+      let result1 = vec4.create();
+      vec4.transformMat4(result1, vecT, curve.M);
+
+      // Calcula o ponto da curva multiplicando o resultado de cima com os pontos de controle G
+      let point = vec3.create();
+      multiplyVec4ByMat4x3(G, result1, point);
+
+      curve.curvePoints.push(point);
+    }
+  }
+}
+
+// Multiplica um vetor 4D pela matriz 4x3
+function multiplyVec4ByMat4x3(mat4x3, vec, resultVec) {
+  // Matriz resultado 1x3
+  let result = [0, 0, 0];
+
+  // Multiplicando a matriz 1x4 por 4x3
+  for (let j = 0; j < 3; j++) {
+    for (let k = 0; k < 4; k++) {
+      result[j] += vec[k] * mat4x3[k][j];
+    }
+  }
+
+  vec3.set(resultVec, result[0], result[1], result[2]);
+}
+
+function moveObjectInCurve(object, curve, index) {
+  console.log(index);
+  let nextPos = vec3.clone(curve.curvePoints[index]);
+
+  object.position[0] = nextPos[0];
+  object.position[1] = nextPos[1];
+  object.position[2] = nextPos[2];
+
+  index++;
+  if (index >= curve.curvePoints.length) {
+    index = 0;
+  }
+
+  return index;
 }
