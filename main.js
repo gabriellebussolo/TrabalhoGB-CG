@@ -128,60 +128,141 @@ document.addEventListener('DOMContentLoaded', () => {
       this.color = [1.0, 0.5, 0.31];
     }
   }
+  const fileInput = document.getElementById('fileInput');
+  const processButton = document.getElementById('processFiles');
 
-  // Example OBJ string data
-  const objStr1 = [
-    'v 1.0 -1.0  1.0',
-    'v 1.0 -1.0 -1.0',
-    'v -1.0 -1.0 -1.0',
-    'v -1.0 -1.0  1.0',
-    'v 1.0  1.0  1.0',
-    'v 1.0  1.0 -1.0',
-    'v -1.0  1.0 -1.0',
-    'v -1.0  1.0  1.0',
-    'vn 0.0 -1.0 0.0',
-    'vn 0.0  1.0 0.0',
-    'vn 1.0  0.0 0.0',
-    'vn -1.0  0.0 0.0',
-    'vn 0.0  0.0 1.0',
-    'vn 0.0  0.0 -1.0',
-    'f 1//1 2//1 3//1',
-    'f 1//1 3//1 4//1',
-    'f 5//2 8//2 7//2',
-    'f 5//2 7//2 6//2',
-    'f 1//3 5//3 6//3',
-    'f 1//3 6//3 2//3',
-    'f 2//6 6//6 7//6',
-    'f 2//6 7//6 3//6',
-    'f 3//4 7//4 8//4',
-    'f 3//4 8//4 4//4',
-    'f 4//5 8//5 5//5',
-    'f 4//5 5//5 1//5',
-  ].join('\n');
+  // Lista para armazenar o conteúdo dos arquivos
+  let fileContents = [];
 
-  const objStr2 = [
-    // Vértices
-    'v  0.0  1.0  0.0',
-    'v -1.0 -1.0 -1.0',
-    'v  1.0 -1.0 -1.0',
-    'v  1.0 -1.0  1.0',
-    'v -1.0 -1.0  1.0',
-    'vn  0.0  0.4472 -0.8944',
-    'vn  0.8944  0.4472  0.0',
-    'vn -0.8944  0.4472  0.0',
-    'vn  0.0 -1.0  0.0',
-    'f 1//1 2//1 3//1',
-    'f 1//2 3//2 4//2',
-    'f 1//3 4//3 5//3',
-    'f 2//4 5//4 4//4',
-    'f 2//4 4//4 3//4',
-  ].join('\n');
+  // Adiciona um evento ao botão para processar os arquivos
+  processButton.addEventListener('click', () => {
+    const files = fileInput.files;
+
+    // Verifica se o número correto de arquivos foi selecionado
+    if (files.length !== 3) {
+      alert('Por favor, selecione exatamente 3 arquivos.');
+      return;
+    }
+
+    // Limpa a lista de conteúdos e a exibição
+    fileContents = [];
+
+    // Cria um FileReader para cada arquivo
+    Array.from(files).forEach((file, index) => {
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        // Armazena o conteúdo do arquivo
+        fileContents[index] = {
+          name: file.name,
+          content: event.target.result,
+        };
+
+        // Verifica se todos os arquivos foram lidos
+        if (fileContents.length === 3 && !fileContents.includes(undefined)) {
+          console.log('Todos os arquivos foram processados:', fileContents);
+
+          // Armazena a posicao que o arquivo de configuracao esta
+          let configFileIndex = 0;
+
+          console.log(fileContents.length);
+          // Procura o arquivo de configuração .txt
+          for (let i = 0; i < fileContents.length; i++) {
+            if (fileContents[i].name.endsWith('.txt')) {
+              configFileIndex = i;
+              break;
+            }
+          }
+
+          // Separa o arquivo de configuracao em enters
+          let configFileSplittled =
+            fileContents[configFileIndex].content.split('\n');
+
+          for (let i = 0; i < configFileSplittled.length; i++) {
+            var lineSplitted = configFileSplittled[i].split(' ');
+
+            switch (lineSplitted[0]) {
+              case '#obj':
+                let fileObj = lineSplitted[1];
+
+                // Procura o arquivo obj
+                for (let i = 0; i < fileContents.length; i++) {
+                  if (fileContents[i].name.localeCompare(fileObj) == 0) {
+                    objects.push(new SceneObject(gl, fileContents[i].content)); // create the object from the .obj file provided
+                    break;
+                  }
+                }
+
+                //read the rotation, translation and scale from the config file for this obj
+                i++;
+                lineSplitted = configFileSplittled[i].split(' ');
+                console.log(objects.length);
+                //rotation line
+                objects[objects.length - 1].rotation[0] = parseFloat(
+                  lineSplitted[0]
+                );
+                objects[objects.length - 1].rotation[1] = parseFloat(
+                  lineSplitted[1]
+                );
+                objects[objects.length - 1].rotation[2] = parseFloat(
+                  lineSplitted[2]
+                );
+                i++;
+                //translation line
+                lineSplitted = configFileSplittled[i].split(' ');
+                objects[objects.length - 1].position[0] = parseFloat(
+                  lineSplitted[0]
+                );
+                objects[objects.length - 1].position[1] = parseFloat(
+                  lineSplitted[1]
+                );
+                objects[objects.length - 1].position[2] = parseFloat(
+                  lineSplitted[2]
+                );
+
+                i++;
+                //scale line
+                lineSplitted = configFileSplittled[i].split(' ');
+                objects[objects.length - 1].scale[0] = parseFloat(
+                  lineSplitted[0]
+                );
+                objects[objects.length - 1].scale[1] = parseFloat(
+                  lineSplitted[1]
+                );
+                objects[objects.length - 1].scale[2] = parseFloat(
+                  lineSplitted[2]
+                );
+                i++;
+                //curve line
+                lineSplitted = configFileSplittled[i].split(' ');
+                if (lineSplitted[0].localeCompare('true') == 0) {
+                  objects[objects.length - 1].curve = true;
+                }
+                i++;
+            }
+          }
+        }
+      };
+
+      // Lê o arquivo como texto
+      reader.readAsText(file);
+    });
+  });
 
   const curve = {
     controlPoints: [], // Pontos de controle da curva
     curvePoints: [], // Pontos da curva
     M: mat4.create(), // Matriz dos coeficientes da curva
   };
+
+  // Variables for camera position and view movement
+  let cameraPosX = 0.0,
+    cameraPosY = 0.0,
+    cameraPosZ = 10.0;
+
+  let cameraViewX = 0.0,
+    cameraViewY = 0.0,
+    cameraViewZ = 0.0;
 
   // Gera pontos de controle da curva
   generateInfiniteControlPoints(20, curve.controlPoints);
@@ -192,18 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Variaveis para movimentar o objeto na tela
   let index = 0;
-
-  // Carregar os objetos
-  objects.push(new SceneObject(gl, objStr1)); // Cubo
-  objects.push(new SceneObject(gl, objStr2)); // Triângulo
-
-  // Definir cores para cada objeto
-  objects[0].color = [1.0, 0.5, 0.31]; // Cor para o cubo (laranja)
-  objects[1].color = [0.0, 1.0, 0.0]; // Cor para o triângulo (verde)
-
-  // Posicionar os objetos separadamente
-  objects[0].position = [-1.5, 0.0, 0.0]; // Cubo à esquerda
-  objects[1].position = [1.5, 0.0, 0.0]; // Triângulo à direita
 
   console.log('Objects loaded:', objects);
 
@@ -219,15 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`Selected Object: ${selectedObject}`);
   });
 
-  // Variables for camera position and view movement
-  let cameraPosX = 0.0,
-    cameraPosY = 0.0,
-    cameraPosZ = 10.0;
-
-  let cameraViewX = 0.0,
-    cameraViewY = 0.0,
-    cameraViewZ = 0.0;
-
   // Set light properties
   gl.useProgram(programInfo.program);
 
@@ -237,21 +297,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const objectColor = [1.0, 0.5, 0.31]; // Object color
   const shininess = 32.0; // Shininess factor
 
-    // Adicionar localizações para Ka, Kd e Ks
-  programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, "uKa");
-  programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, "uKd");
-  programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, "uKs");
+  // Adicionar localizações para Ka, Kd e Ks
+  programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, 'uKa');
+  programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, 'uKd');
+  programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, 'uKs');
 
   // Configurar os valores de Ka, Kd e Ks
   var ka = 0.5;
-  var kd = 0.5; 
-  var ks = 0.5; 
+  var kd = 0.5;
+  var ks = 0.5;
 
   gl.useProgram(programInfo.program);
   gl.uniform1f(programInfo.uniformLocations.ka, ka);
   gl.uniform1f(programInfo.uniformLocations.kd, kd);
   gl.uniform1f(programInfo.uniformLocations.ks, ks);
-
 
   // Set uniforms
   gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
@@ -284,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sliderId == 'lightKa') ka = parseFloat(slider.value);
       if (sliderId == 'lightKd') kd = parseFloat(slider.value);
     });
-  
   });
 
   function render() {
@@ -306,7 +364,9 @@ document.addEventListener('DOMContentLoaded', () => {
       100.0,
       selectedObject
     );
-    index = moveObjectInCurve(objects[0], curve, index);
+    if (objects.length > 0) {
+      index = moveObjectInCurve(objects[0], curve, index);
+    }
     requestAnimationFrame(render);
   }
 
