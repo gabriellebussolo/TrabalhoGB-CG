@@ -128,6 +128,20 @@ document.addEventListener('DOMContentLoaded', () => {
       this.color = [1.0, 0.5, 0.31];
     }
   }
+
+  // Variables for camera position and view movement
+  var cameraPosX = 0.0,
+    cameraPosY = 0.0,
+    cameraPosZ = 0.0;
+
+  var cameraViewX = 0.0,
+    cameraViewY = 0.0,
+    cameraViewZ = 0.0;
+
+  var fov = 45,
+    zNear = 0.1,
+    zFar = 100.0;
+
   const fileInput = document.getElementById('fileInput');
   const processButton = document.getElementById('processFiles');
 
@@ -239,6 +253,27 @@ document.addEventListener('DOMContentLoaded', () => {
                   objects[objects.length - 1].curve = true;
                 }
                 i++;
+                break;
+              case '#cameraPos':
+                cameraPosX = lineSplitted[1];
+                cameraPosY = lineSplitted[2];
+                cameraPosZ = lineSplitted[3];
+                console.log(cameraPosX + ' ' + cameraPosY + ' ' + cameraPosZ);
+                break;
+              case '#cameraView':
+                cameraViewX = lineSplitted[1];
+                cameraViewY = lineSplitted[2];
+                cameraViewZ = lineSplitted[3];
+                console.log(
+                  cameraViewX + ' ' + cameraViewY + ' ' + cameraViewZ
+                );
+                break;
+              case '#frustrum':
+                fov = lineSplitted[1];
+                zNear = lineSplitted[2];
+                zFar = lineSplitted[3];
+                console.log(fov + ' ' + zNear + ' ' + zFar);
+                break;
             }
           }
         }
@@ -254,15 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
     curvePoints: [], // Pontos da curva
     M: mat4.create(), // Matriz dos coeficientes da curva
   };
-
-  // Variables for camera position and view movement
-  let cameraPosX = 0.0,
-    cameraPosY = 0.0,
-    cameraPosZ = 10.0;
-
-  let cameraViewX = 0.0,
-    cameraViewY = 0.0,
-    cameraViewZ = 0.0;
 
   // Gera pontos de controle da curva
   generateInfiniteControlPoints(20, curve.controlPoints);
@@ -365,7 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedObject
     );
     if (objects.length > 0) {
-      index = moveObjectInCurve(objects[0], curve, index);
+      for (let i = 0; i < objects.length; i++) {
+        // move the object in the parametic curve only if defined in the config file
+        if (objects[i].curve == true) {
+          index = moveObjectInCurve(objects[i], curve, index);
+        }
+      }
     }
     requestAnimationFrame(render);
   }

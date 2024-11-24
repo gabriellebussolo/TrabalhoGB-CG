@@ -2,18 +2,16 @@
 0.0 0.0 0.0 #rot
 -1.5 0.0 0.0 #pos
 1.0 1.0 1.0 #scale
-true #curve
+false #curve
 
 #obj triangle.obj
 0.0 0.0 0.0 #rot
 1.5 0.0 0.0 #pos
 1.0 1.0 1.0 #scale
-false #curve
+true #curve
 
 # informacao da fonte de luz?
 
 #cameraPos 0.0 0.0 10.0
-
 #cameraView 0.0 0.0 0.0
-
 #frustrum 45 0.1 100
