@@ -3,12 +3,14 @@
 -1.5 0.0 0.0 #pos
 1.0 1.0 1.0 #scale
 false #curve
+0.3 0.7 0.9   # Ka, Kd, Ks
 
 #obj triangle.obj
 0.0 0.0 0.0 #rot
 1.5 0.0 0.0 #pos
 1.0 1.0 1.0 #scale
 true #curve
+0.4 0.5 0.8   # Ka, Kd, Ks
 
 # informacao da fonte de luz?
 

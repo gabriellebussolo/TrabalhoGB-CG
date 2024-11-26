@@ -126,9 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
       this.position = [0, 0, 0];
       this.scale = [1, 1, 1];
       this.color = [1.0, 0.5, 0.31];
+      this.ka = 0.5; // Coeficiente de iluminação ambiente
+      this.kd = 0.7; // Coeficiente de iluminação difusa
+      this.ks = 0.3; // Coeficiente de iluminação especular
     }
   }
-
+  
   // Variables for camera position and view movement
   var cameraPosX = 0.0,
     cameraPosY = 0.0,
@@ -253,6 +256,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   objects[objects.length - 1].curve = true;
                 }
                 i++;
+                lineSplitted = configFileSplittled[i].split(' ');
+                objects[objects.length - 1].ka = parseFloat(lineSplitted[0]);
+                objects[objects.length - 1].kd = parseFloat(lineSplitted[1]);
+                objects[objects.length - 1].ks = parseFloat(lineSplitted[2]);
+                i++;
                 break;
               case '#cameraPos':
                 cameraPosX = lineSplitted[1];
@@ -365,9 +373,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
       if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
       if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
-      if (sliderId == 'lightKs') ks = parseFloat(slider.value);
-      if (sliderId == 'lightKa') ka = parseFloat(slider.value);
-      if (sliderId == 'lightKd') kd = parseFloat(slider.value);
+      if (sliderId == 'lightKs') obj.ks = parseFloat(slider.value);
+      if (sliderId == 'lightKa')  obj.ka = parseFloat(slider.value);
+      if (sliderId == 'lightKd') obj.kd = parseFloat(slider.value);
     });
   });
 
@@ -505,6 +513,10 @@ function drawScene(
 
     // Definir a cor do objeto
     gl.uniform3fv(programInfo.uniformLocations.objectColor, obj.color);
+
+    gl.uniform1f(programInfo.uniformLocations.ka, obj.ka);
+    gl.uniform1f(programInfo.uniformLocations.kd, obj.kd);
+    gl.uniform1f(programInfo.uniformLocations.ks, obj.ks);
 
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix, modelViewMatrix, obj.position);
