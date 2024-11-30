@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
       this.ks = 0.3; // Coeficiente de iluminação especular
     }
   }
-  
+
   // Variables for camera position and view movement
   var cameraPosX = 0.0,
     cameraPosY = 0.0,
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Gera pontos de controle da curva
-  generateInfiniteControlPoints(20, curve.controlPoints);
+  generateElipseControlPoints(20, curve.controlPoints);
 
   // Gera pontos da curva de Bézier
   let numCurvePoints = 100; // Quantidade de pontos por segmento na curva
@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
       if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
       if (sliderId == 'lightKs') obj.ks = parseFloat(slider.value);
-      if (sliderId == 'lightKa')  obj.ka = parseFloat(slider.value);
+      if (sliderId == 'lightKa') obj.ka = parseFloat(slider.value);
       if (sliderId == 'lightKd') obj.kd = parseFloat(slider.value);
     });
   });
@@ -605,23 +605,27 @@ function resizeCanvas(canvas) {
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
-function generateInfiniteControlPoints(numPoints, controlPoints) {
+function generateElipseControlPoints(numPoints, controlPoints) {
   // Define o intervalo para t: de 0 a 2 * PI, dividido em numPoints
   step = (2.0 * 3.14159) / (numPoints - 1.0);
 
-  let scale = 1;
+  //let scale = 1;
+  let a = 2;
+  let b = 1;
 
   for (let i = 0; i < numPoints - 1; i++) {
     let t = i * step;
 
     // Calcula x(t) e y(t) usando as fórmulas paramétricas
-    x = (scale * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
-    y = (scale * Math.sin(t) * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
+    //x = (scale * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
+    //y = (scale * Math.sin(t) * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
+
+    x = a * Math.cos(t);
+    y = b * Math.sin(t);
 
     // Aumenta o X e Y para a curva ficar maior e melhor de visualizar
     x *= 2.0;
     y *= 2.0;
-    y += 0.15;
 
     point = vec3.create();
     vec3.set(point, x, y, 0.0);
@@ -665,16 +669,16 @@ function generateBezierCurvePoints(curve, numPoints) {
 
   for (let i = 0; i < curve.controlPoints.length - 3; i += 3) {
     // Gera pontos para o segmento atual
-    for (let j = 0; j < numPoints; j++) {
+    for (let j = 0; j <= numPoints; j++) {
       let t = j * piece;
 
       // Vetor t para o polinômio de Bernstein
       vecT = vec4.create();
       vec4.set(vecT, t * t * t, t * t, t, 1);
-      P0 = vec3.clone(curve.controlPoints[i]);
-      P1 = vec3.clone(curve.controlPoints[i + 1]);
-      P2 = vec3.clone(curve.controlPoints[i + 2]);
-      P3 = vec3.clone(curve.controlPoints[i + 3]);
+      let P0 = vec3.clone(curve.controlPoints[i]);
+      let P1 = vec3.clone(curve.controlPoints[i + 1]);
+      let P2 = vec3.clone(curve.controlPoints[i + 2]);
+      let P3 = vec3.clone(curve.controlPoints[i + 3]);
 
       const G = [P0, P1, P2, P3];
 
@@ -688,6 +692,23 @@ function generateBezierCurvePoints(curve, numPoints) {
 
       curve.curvePoints.push(point);
     }
+  }
+
+  console.log(curve.curvePoints);
+
+  // Conectar o último ponto ao primeiro ponto suavemente
+  let lastPoint = curve.curvePoints[curve.curvePoints.length - 1];
+  let firstPoint = curve.curvePoints[0];
+
+  let additionalPoints = 20;
+  // Gerar pontos adicionais entre o último e o primeiro ponto
+  for (let i = 1; i <= additionalPoints; i++) {
+    let t = i / additionalPoints; // Variar t de 0 a 1
+    let intermediatePoint = vec3.create();
+
+    // Interpolação linear entre o último e o primeiro ponto
+    vec3.lerp(intermediatePoint, lastPoint, firstPoint, t);
+    curve.curvePoints.push(intermediatePoint);
   }
 }
 
