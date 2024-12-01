@@ -1,5 +1,6 @@
 class SceneObject {
   constructor(gl, objStr, objConfig, material) {
+    this.gl = gl;
     this.mesh = new OBJ.Mesh(objStr);
     OBJ.initMeshBuffers(gl, this.mesh);
 
@@ -22,6 +23,10 @@ class SceneObject {
       this.kd = (material.diffuse && material.diffuse[0]) || 0.6;
       this.ks = (material.specular && material.specular[0]) || 0.3;
       this.shininess = material.shininess || 32.0;
+
+      if (material.texture) {
+        this.texture = loadTexture(gl, material.texture);
+      }
     } else {
       this.color = [1.0, 0.5, 0.31];
       this.ka = 0.5;
@@ -29,6 +34,70 @@ class SceneObject {
       this.ks = 0.9;
       this.shininess = 32.0;
     }
+  }
+
+  // Method to draw the object
+  draw(programInfo) {
+    const gl = this.gl;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh.vertexBuffer);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexPosition,
+      3,
+      gl.FLOAT,
+      false,
+      0,
+      0
+    );
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+    if (this.mesh.normalBuffer) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh.normalBuffer);
+      gl.vertexAttribPointer(
+        programInfo.attribLocations.vertexNormal,
+        3,
+        gl.FLOAT,
+        false,
+        0,
+        0
+      );
+      gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal);
+    }
+
+    if (this.texture) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+    }
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.indexBuffer);
+
+    const ambient = gl.getUniformLocation(programInfo.program, "uKa");
+    const diffuse = gl.getUniformLocation(programInfo.program, "uKd");
+    const specular = gl.getUniformLocation(programInfo.program, "uKs");
+    const shininess = gl.getUniformLocation(programInfo.program, "uShininess");
+    const isSelected = gl.getUniformLocation(
+      programInfo.program,
+      "uIsSelected"
+    );
+    const objectColor = gl.getUniformLocation(
+      programInfo.program,
+      "uObjectColor"
+    );
+
+    gl.uniform3fv(objectColor, this.color);
+    gl.uniform1f(ambient, this.ka);
+    gl.uniform1f(diffuse, this.kd);
+    gl.uniform1f(specular, this.ks);
+    gl.uniform1f(shininess, this.shininess);
+    gl.uniform1f(isSelected, false);
+
+    gl.drawElements(
+      gl.TRIANGLES,
+      this.mesh.indexBuffer.numItems,
+      gl.UNSIGNED_SHORT,
+      0
+    );
   }
 }
 
@@ -77,6 +146,11 @@ class MTLParser {
             this.materials[currentMaterial].shininess = parseFloat(parts[1]);
           }
           break;
+        case "map_Kd":
+          if (currentMaterial) {
+            this.materials[currentMaterial].texture = parts[1];
+          }
+          break;
       }
     });
 
@@ -117,12 +191,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     varying vec3 vNormal;
     varying vec3 vFragPos;
+    varying vec2 vTextureCoord;
 
     void main(void) {
       vec4 fragPos = uModelViewMatrix * aVertexPosition;
       vFragPos = fragPos.xyz;
       vNormal = mat3(uNormalMatrix) * aVertexNormal;
       gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
+      vTextureCoord = aVertexPosition.xy;  // Assuming you use XYZ world positions as coordinates for simplicity
     }
   `;
 
@@ -131,36 +207,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     varying vec3 vNormal;
     varying vec3 vFragPos;
-
+    varying vec2 vTextureCoord;  // Add texture coordinate varying
+    
     uniform vec3 uLightPosition;
     uniform vec3 uLightColor;
     uniform vec3 uViewPosition;
-
+    
     uniform vec3 uObjectColor;
-    uniform float uShininess;
-    uniform bool uIsSelected; 
-
+    uniform bool uHasTexture;
+    uniform sampler2D uSampler;  // Add texture sampler
+    
     uniform float uKa; 
     uniform float uKd; 
     uniform float uKs; 
-
+    uniform float uShininess;
+    uniform bool uIsSelected; 
+    
     void main(void) {
       vec3 norm = normalize(vNormal);
       vec3 lightDir = normalize(uLightPosition - vFragPos);
-
+    
       vec3 ambient = uKa * uLightColor;
       float diff = max(dot(norm, lightDir), 0.0);
       vec3 diffuse = uKd * diff * uLightColor;
+    
       vec3 viewDir = normalize(-vFragPos);
       vec3 reflectDir = reflect(-lightDir, norm);
       float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
       vec3 specular = uKs * spec * uLightColor;
-
+    
       vec3 finalColor = uObjectColor;
       if (uIsSelected) {
         finalColor = vec3(1.0, 0.0, 0.0);
       }
-        
+    
+      if (uHasTexture) {
+        vec4 texColor = texture2D(uSampler, vTextureCoord);
+        finalColor = texColor.rgb;
+      }
+    
       vec3 result = (ambient + diffuse + specular) * finalColor;
       gl_FragColor = vec4(result, 1.0);
     }
@@ -231,8 +316,6 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         if (fileContents.length === files.length) {
-          console.log("All files processed:", fileContents);
-
           let configFileContent;
           const objFiles = {};
           const mtlFiles = {};
@@ -364,6 +447,15 @@ document.addEventListener("DOMContentLoaded", () => {
       100.0,
       selectedObject
     );
+    gl.useProgram(programInfo.program);
+
+    objects.forEach((object) => {
+      gl.uniform1i(
+        gl.getUniformLocation(shaderProgram, "uHasTexture"),
+        object.texture ? 1 : 0
+      );
+      object.draw(programInfo);
+    });
     tick();
     requestAnimationFrame(render);
   }
@@ -416,6 +508,43 @@ function loadShader(gl, type, source) {
   }
 
   return shader;
+}
+
+function loadTexture(gl, url) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Temporary pixel while the texture is loaded
+  const pixel = new Uint8Array([255, 255, 255, 255]);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    pixel
+  );
+
+  const image = new Image();
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // WebGL parameters for texture
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(
+      gl.TEXTURE_2D,
+      gl.TEXTURE_MIN_FILTER,
+      gl.LINEAR_MIPMAP_LINEAR
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  };
+  image.src = url;
+
+  return texture;
 }
 
 function drawScene(
