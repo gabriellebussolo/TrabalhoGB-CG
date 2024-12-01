@@ -1,7 +1,7 @@
 {
   "objects": [
     {
-      "file": "cube.obj",
+      "file": "earth.obj",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
@@ -21,7 +21,7 @@
       "materialName": "material_0"
     },
     {
-      "file": "triangle.obj",
+      "file": "moon.obj",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
