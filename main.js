@@ -18,8 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   console.log('WebGL context obtained');
-
-  // Vertex shader program
+  
+  // Vertex and Fragment shader programs (unchanged)
   const vsSource = `
           attribute vec4 aVertexPosition;
           attribute vec3 aVertexNormal;
@@ -40,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     `;
 
-  // Fragment shader program
   const fsSource = `
         precision highp float;
   
@@ -63,30 +62,22 @@ document.addEventListener('DOMContentLoaded', () => {
             vec3 norm = normalize(vNormal);
             vec3 lightDir = normalize(uLightPosition - vFragPos);
 
-            // Componente Ambiente
             vec3 ambient = uKa * uLightColor;
-
-            // Componente Difuso
             float diff = max(dot(norm, lightDir), 0.0);
             vec3 diffuse = uKd * diff * uLightColor;
-
-            // Componente Especular
             vec3 viewDir = normalize(-vFragPos);
             vec3 reflectDir = reflect(-lightDir, norm);
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
             vec3 specular = uKs * spec * uLightColor;
 
-            // Cor do objeto e combinação dos componentes
             vec3 finalColor = uObjectColor;
             if (uIsSelected) {
-                finalColor = vec3(1.0, 0.0, 0.0); // Cor vermelha para o objeto selecionado
+                finalColor = vec3(1.0, 0.0, 0.0);
             }
               
-            // Combinação dos componentes
             vec3 result = (ambient + diffuse + specular) * finalColor;
             gl_FragColor = vec4(result, 1.0);
         }
-
     `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
@@ -119,200 +110,112 @@ document.addEventListener('DOMContentLoaded', () => {
   const objects = [];
 
   class SceneObject {
-    constructor(gl, objStr) {
+    constructor(gl, objStr, objConfig) {
       this.mesh = new OBJ.Mesh(objStr);
       OBJ.initMeshBuffers(gl, this.mesh);
-      this.rotation = [0, 0, 0];
-      this.position = [0, 0, 0];
-      this.scale = [1, 1, 1];
-      this.color = [1.0, 0.5, 0.31];
-      this.ka = 0.5; // Coeficiente de iluminação ambiente
-      this.kd = 0.7; // Coeficiente de iluminação difusa
-      this.ks = 0.3; // Coeficiente de iluminação especular
+      this.rotation = objConfig.rotation;
+      this.position = objConfig.position;
+      this.scale = objConfig.scale;
+      this.curve = objConfig.curve;
+      this.color = [1.0, 0.5, 0.31]; // Default color
+      this.ka = objConfig.lightingCoefficients[0];
+      this.kd = objConfig.lightingCoefficients[1];
+      this.ks = objConfig.lightingCoefficients[2];
     }
   }
 
-  // Variables for camera position and view movement
-  var cameraPosX = 0.0,
+  let cameraPosX = 0.0,
     cameraPosY = 0.0,
     cameraPosZ = 0.0;
 
-  var cameraViewX = 0.0,
+  let cameraViewX = 0.0,
     cameraViewY = 0.0,
     cameraViewZ = 0.0;
 
-  var fov = 45,
+  let fov = 45,
     zNear = 0.1,
     zFar = 100.0;
 
   const fileInput = document.getElementById('fileInput');
   const processButton = document.getElementById('processFiles');
 
-  // Lista para armazenar o conteúdo dos arquivos
   let fileContents = [];
 
-  // Adiciona um evento ao botão para processar os arquivos
   processButton.addEventListener('click', () => {
     const files = fileInput.files;
 
-    // Verifica se o número correto de arquivos foi selecionado
     if (files.length !== 3) {
-      alert('Por favor, selecione exatamente 3 arquivos.');
+      alert('Please select exactly 3 files.');
       return;
     }
 
-    // Limpa a lista de conteúdos e a exibição
     fileContents = [];
 
-    // Cria um FileReader para cada arquivo
     Array.from(files).forEach((file, index) => {
       const reader = new FileReader();
 
       reader.onload = (event) => {
-        // Armazena o conteúdo do arquivo
         fileContents[index] = {
           name: file.name,
           content: event.target.result,
         };
 
-        // Verifica se todos os arquivos foram lidos
         if (fileContents.length === 3 && !fileContents.includes(undefined)) {
-          console.log('Todos os arquivos foram processados:', fileContents);
+          console.log('All files processed:', fileContents);
 
-          // Armazena a posicao que o arquivo de configuracao esta
-          let configFileIndex = 0;
-
-          console.log(fileContents.length);
-          // Procura o arquivo de configuração .txt
-          for (let i = 0; i < fileContents.length; i++) {
-            if (fileContents[i].name.endsWith('.txt')) {
-              configFileIndex = i;
-              break;
+          let configFileContent;
+          fileContents.forEach((fileContent) => {
+            if (fileContent.name.endsWith('.json')) {
+              configFileContent = JSON.parse(fileContent.content);
             }
-          }
+          });
 
-          // Separa o arquivo de configuracao em enters
-          let configFileSplittled =
-            fileContents[configFileIndex].content.split('\n');
+          configFileContent.objects.forEach((objConfig) => {
+            let objFileContent;
+            fileContents.forEach((fileContent) => {
+              if (fileContent.name === objConfig.file) {
+                objFileContent = fileContent.content;
+              }
+            });
 
-          for (let i = 0; i < configFileSplittled.length; i++) {
-            var lineSplitted = configFileSplittled[i].split(' ');
-
-            switch (lineSplitted[0]) {
-              case '#obj':
-                let fileObj = lineSplitted[1];
-
-                // Procura o arquivo obj
-                for (let i = 0; i < fileContents.length; i++) {
-                  if (fileContents[i].name.localeCompare(fileObj) == 0) {
-                    objects.push(new SceneObject(gl, fileContents[i].content)); // create the object from the .obj file provided
-                    break;
-                  }
-                }
-
-                //read the rotation, translation and scale from the config file for this obj
-                i++;
-                lineSplitted = configFileSplittled[i].split(' ');
-                console.log(objects.length);
-                //rotation line
-                objects[objects.length - 1].rotation[0] = parseFloat(
-                  lineSplitted[0]
-                );
-                objects[objects.length - 1].rotation[1] = parseFloat(
-                  lineSplitted[1]
-                );
-                objects[objects.length - 1].rotation[2] = parseFloat(
-                  lineSplitted[2]
-                );
-                i++;
-                //translation line
-                lineSplitted = configFileSplittled[i].split(' ');
-                objects[objects.length - 1].position[0] = parseFloat(
-                  lineSplitted[0]
-                );
-                objects[objects.length - 1].position[1] = parseFloat(
-                  lineSplitted[1]
-                );
-                objects[objects.length - 1].position[2] = parseFloat(
-                  lineSplitted[2]
-                );
-
-                i++;
-                //scale line
-                lineSplitted = configFileSplittled[i].split(' ');
-                objects[objects.length - 1].scale[0] = parseFloat(
-                  lineSplitted[0]
-                );
-                objects[objects.length - 1].scale[1] = parseFloat(
-                  lineSplitted[1]
-                );
-                objects[objects.length - 1].scale[2] = parseFloat(
-                  lineSplitted[2]
-                );
-                i++;
-                //curve line
-                lineSplitted = configFileSplittled[i].split(' ');
-                if (lineSplitted[0].localeCompare('true') == 0) {
-                  objects[objects.length - 1].curve = true;
-                }
-                i++;
-                lineSplitted = configFileSplittled[i].split(' ');
-                objects[objects.length - 1].ka = parseFloat(lineSplitted[0]);
-                objects[objects.length - 1].kd = parseFloat(lineSplitted[1]);
-                objects[objects.length - 1].ks = parseFloat(lineSplitted[2]);
-                i++;
-                break;
-              case '#cameraPos':
-                cameraPosX = lineSplitted[1];
-                cameraPosY = lineSplitted[2];
-                cameraPosZ = lineSplitted[3];
-                console.log(cameraPosX + ' ' + cameraPosY + ' ' + cameraPosZ);
-                break;
-              case '#cameraView':
-                cameraViewX = lineSplitted[1];
-                cameraViewY = lineSplitted[2];
-                cameraViewZ = lineSplitted[3];
-                console.log(
-                  cameraViewX + ' ' + cameraViewY + ' ' + cameraViewZ
-                );
-                break;
-              case '#frustrum':
-                fov = lineSplitted[1];
-                zNear = lineSplitted[2];
-                zFar = lineSplitted[3];
-                console.log(fov + ' ' + zNear + ' ' + zFar);
-                break;
+            if (objFileContent) {
+              objects.push(new SceneObject(gl, objFileContent, objConfig));
             }
-          }
+          });
+
+          cameraPosX = configFileContent.camera.position[0];
+          cameraPosY = configFileContent.camera.position[1];
+          cameraPosZ = configFileContent.camera.position[2];
+
+          cameraViewX = configFileContent.camera.view[0];
+          cameraViewY = configFileContent.camera.view[1];
+          cameraViewZ = configFileContent.camera.view[2];
+
+          fov = configFileContent.frustrum.fov;
+          zNear = configFileContent.frustrum.zNear;
+          zFar = configFileContent.frustrum.zFar;
         }
       };
 
-      // Lê o arquivo como texto
       reader.readAsText(file);
     });
   });
 
   const curve = {
-    controlPoints: [], // Pontos de controle da curva
-    curvePoints: [], // Pontos da curva
-    M: mat4.create(), // Matriz dos coeficientes da curva
+    controlPoints: [],
+    curvePoints: [],
+    M: mat4.create(),
   };
 
-  // Gera pontos de controle da curva
   generateElipseControlPoints(20, curve.controlPoints);
-
-  // Gera pontos da curva de Bézier
-  let numCurvePoints = 100; // Quantidade de pontos por segmento na curva
+  let numCurvePoints = 100;
   generateBezierCurvePoints(curve, numCurvePoints);
-
-  // Variaveis para movimentar o objeto na tela
   let index = 0;
 
   console.log('Objects loaded:', objects);
 
   let selectedObject = 0;
 
-  // Listen for key presses to change selected object
   document.addEventListener('keydown', (event) => {
     if (event.code === 'ArrowRight') {
       selectedObject = (selectedObject + 1) % objects.length;
@@ -322,36 +225,26 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`Selected Object: ${selectedObject}`);
   });
 
-  // Set light properties
   gl.useProgram(programInfo.program);
 
-  const lightPosition = [2.0, 2.0, 2.0]; // Light position in view space
-  const lightColor = [1.0, 1.0, 1.0]; // White light color
+  const lightPosition = [2.0, 2.0, 2.0];
+  const lightColor = [1.0, 1.0, 1.0];
+  const objectColor = [1.0, 0.5, 0.31];
+  const shininess = 32.0;
 
-  const objectColor = [1.0, 0.5, 0.31]; // Object color
-  const shininess = 32.0; // Shininess factor
-
-  // Adicionar localizações para Ka, Kd e Ks
   programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, 'uKa');
   programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, 'uKd');
   programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, 'uKs');
 
-  // Configurar os valores de Ka, Kd e Ks
   var ka = 0.5;
   var kd = 0.5;
   var ks = 0.5;
 
   gl.useProgram(programInfo.program);
-  gl.uniform1f(programInfo.uniformLocations.ka, ka);
-  gl.uniform1f(programInfo.uniformLocations.kd, kd);
-  gl.uniform1f(programInfo.uniformLocations.ks, ks);
-
-  // Set uniforms
   gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
   gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
   gl.uniform3fv(programInfo.uniformLocations.objectColor, objectColor);
   gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
-
   const sliders = document.querySelectorAll("input[type='range']");
 
   sliders.forEach((slider) => {
@@ -400,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     if (objects.length > 0) {
       for (let i = 0; i < objects.length; i++) {
-        // move the object in the parametic curve only if defined in the config file
         if (objects[i].curve == true) {
           index = moveObjectInCurve(objects[i], curve, index);
         }
