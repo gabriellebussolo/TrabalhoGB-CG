@@ -18,7 +18,7 @@
         "z": 1.0
       },
       "isMovingAlongCurve": false,
-      "materialName": "cubeMaterial"
+      "materialName": "material_0"
     },
     {
       "file": "triangle.obj",
@@ -38,7 +38,7 @@
         "z": 1.0
       },
       "isMovingAlongCurve": true,
-      "materialName": "triangleMaterial"
+      "materialName": "material_1"
     }
   ],
   "camera": {

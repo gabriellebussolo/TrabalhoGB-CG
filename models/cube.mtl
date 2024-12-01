@@ -1,5 +1,9 @@
-newmtl cubeMaterial
-Ka  0.2 0.2 0.2
-Kd  0.6 0.6 0.6
-Ks  0.3 0.3 0.3
-Ns  32.0
+newmtl material_0
+Ns 90.0
+d 1.0
+illum 2
+Kd 0.8 0.8 0.8
+Ka 0.2 0.2 0.2
+Ks 1.0 1.0 1.0
+Ke 0.0 0.0 0.0
+map_Kd models/Terra.jpg
