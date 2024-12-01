@@ -18,67 +18,67 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   console.log('WebGL context obtained');
-  
+
   // Vertex and Fragment shader programs (unchanged)
   const vsSource = `
-          attribute vec4 aVertexPosition;
-          attribute vec3 aVertexNormal;
-  
-          uniform mat4 uNormalMatrix;
-          uniform mat4 uModelViewMatrix;
-          uniform mat4 uProjectionMatrix;
-          uniform mat4 uViewMatrix;
-  
-          varying vec3 vNormal;
-          varying vec3 vFragPos;
-  
-          void main(void) {
-            vec4 fragPos = uModelViewMatrix * aVertexPosition;
-            vFragPos = fragPos.xyz;
-            vNormal = mat3(uNormalMatrix) * aVertexNormal;
-            gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
-        }
-    `;
+    attribute vec4 aVertexPosition;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uNormalMatrix;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uViewMatrix;
+
+    varying vec3 vNormal;
+    varying vec3 vFragPos;
+
+    void main(void) {
+      vec4 fragPos = uModelViewMatrix * aVertexPosition;
+      vFragPos = fragPos.xyz;
+      vNormal = mat3(uNormalMatrix) * aVertexNormal;
+      gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
+    }
+  `;
 
   const fsSource = `
-        precision highp float;
-  
-        varying vec3 vNormal;
-        varying vec3 vFragPos;
-  
-        uniform vec3 uLightPosition;
-        uniform vec3 uLightColor;
-        uniform vec3 uViewPosition;
-  
-        uniform vec3 uObjectColor;
-        uniform float uShininess;
-        uniform bool uIsSelected; 
-  
-        uniform float uKa; 
-        uniform float uKd; 
-        uniform float uKs; 
+    precision highp float;
 
-        void main(void) {
-            vec3 norm = normalize(vNormal);
-            vec3 lightDir = normalize(uLightPosition - vFragPos);
+    varying vec3 vNormal;
+    varying vec3 vFragPos;
 
-            vec3 ambient = uKa * uLightColor;
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = uKd * diff * uLightColor;
-            vec3 viewDir = normalize(-vFragPos);
-            vec3 reflectDir = reflect(-lightDir, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-            vec3 specular = uKs * spec * uLightColor;
+    uniform vec3 uLightPosition;
+    uniform vec3 uLightColor;
+    uniform vec3 uViewPosition;
 
-            vec3 finalColor = uObjectColor;
-            if (uIsSelected) {
-                finalColor = vec3(1.0, 0.0, 0.0);
-            }
-              
-            vec3 result = (ambient + diffuse + specular) * finalColor;
-            gl_FragColor = vec4(result, 1.0);
-        }
-    `;
+    uniform vec3 uObjectColor;
+    uniform float uShininess;
+    uniform bool uIsSelected; 
+
+    uniform float uKa; 
+    uniform float uKd; 
+    uniform float uKs; 
+
+    void main(void) {
+      vec3 norm = normalize(vNormal);
+      vec3 lightDir = normalize(uLightPosition - vFragPos);
+
+      vec3 ambient = uKa * uLightColor;
+      float diff = max(dot(norm, lightDir), 0.0);
+      vec3 diffuse = uKd * diff * uLightColor;
+      vec3 viewDir = normalize(-vFragPos);
+      vec3 reflectDir = reflect(-lightDir, norm);
+      float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+      vec3 specular = uKs * spec * uLightColor;
+
+      vec3 finalColor = uObjectColor;
+      if (uIsSelected) {
+        finalColor = vec3(1.0, 0.0, 0.0);
+      }
+        
+      vec3 result = (ambient + diffuse + specular) * finalColor;
+      gl_FragColor = vec4(result, 1.0);
+    }
+  `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const programInfo = {
@@ -88,10 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     },
     uniformLocations: {
-      projectionMatrix: gl.getUniformLocation(
-        shaderProgram,
-        'uProjectionMatrix'
-      ),
+      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
       viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
       normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
@@ -101,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
       objectColor: gl.getUniformLocation(shaderProgram, 'uObjectColor'),
       shininess: gl.getUniformLocation(shaderProgram, 'uShininess'),
       isSelected: gl.getUniformLocation(shaderProgram, 'uIsSelected'),
+      ka: gl.getUniformLocation(shaderProgram, 'uKa'),
+      kd: gl.getUniformLocation(shaderProgram, 'uKd'),
+      ks: gl.getUniformLocation(shaderProgram, 'uKs')
     },
   };
 
@@ -109,42 +109,110 @@ document.addEventListener('DOMContentLoaded', () => {
   const objects = [];
 
   class SceneObject {
-    constructor(gl, objStr, objConfig) {
+    constructor(gl, objStr, objConfig, material) {
       this.mesh = new OBJ.Mesh(objStr);
       OBJ.initMeshBuffers(gl, this.mesh);
-      this.rotation = [objConfig.rotation.x, objConfig.rotation.y, objConfig.rotation.z];
-      this.position = [objConfig.position.x, objConfig.position.y, objConfig.position.z];
+
+      this.rotation = [
+        objConfig.rotation.x,
+        objConfig.rotation.y,
+        objConfig.rotation.z,
+      ];
+      this.position = [
+        objConfig.position.x,
+        objConfig.position.y,
+        objConfig.position.z,
+      ];
       this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
       this.curve = objConfig.isMovingAlongCurve;
-      this.color = [1.0, 0.5, 0.31]; // Default color
-      this.ka = objConfig.material.ka;
-      this.kd = objConfig.material.kd;
-      this.ks = objConfig.material.ks;
+
+      if (material) {
+        this.color = material.diffuse || [1.0, 1.0, 1.0];
+        this.ka = (material.ambient && material.ambient[0]) || 0.1;
+        this.kd = (material.diffuse && material.diffuse[0]) || 0.6;
+        this.ks = (material.specular && material.specular[0]) || 0.3;
+        this.shininess = material.shininess || 32.0;
+      } else {
+        this.color = [1.0, 0.5, 0.31];
+        this.ka = 0.5;
+        this.kd = 0.7;
+        this.ks = 0.9;
+        this.shininess = 32.0;
+      }
+    }
+  }
+
+  class MTLParser {
+    constructor() {
+      this.materials = {};
+    }
+
+    parse(mtlFileContent) {
+      const lines = mtlFileContent.split("\n");
+      let currentMaterial = null;
+
+      lines.forEach((line) => {
+        line = line.trim();
+        const parts = line.split(/\s+/);
+        const type = parts[0];
+
+        switch (type) {
+          case "newmtl":
+            currentMaterial = parts[1];
+            this.materials[currentMaterial] = {};
+            break;
+          case "Kd":
+            if (currentMaterial) {
+              this.materials[currentMaterial].diffuse = parts
+                .slice(1)
+                .map(parseFloat);
+            }
+            break;
+          case "Ka":
+            if (currentMaterial) {
+              this.materials[currentMaterial].ambient = parts
+                .slice(1)
+                .map(parseFloat);
+            }
+            break;
+          case "Ks":
+            if (currentMaterial) {
+              this.materials[currentMaterial].specular = parts
+                .slice(1)
+                .map(parseFloat);
+            }
+            break;
+          case "Ns":
+            if (currentMaterial) {
+              this.materials[currentMaterial].shininess = parseFloat(parts[1]);
+            }
+            break;
+        }
+      });
+
+      return this.materials;
     }
   }
 
   let cameraPosX = 0.0,
     cameraPosY = 0.0,
     cameraPosZ = 0.0;
-
   let cameraViewX = 0.0,
     cameraViewY = 0.0,
     cameraViewZ = 0.0;
-
   let fov = 45,
     zNear = 0.1,
     zFar = 100.0;
 
-  const fileInput = document.getElementById('fileInput');
-  const processButton = document.getElementById('processFiles');
+  const fileInput = document.getElementById("fileInput");
+  const processButton = document.getElementById("processFiles");
 
   let fileContents = [];
 
-  processButton.addEventListener('click', () => {
+  processButton.addEventListener("click", () => {
     const files = fileInput.files;
-
-    if (files.length !== 3) {
-      alert('Please select exactly 3 files.');
+    if (files.length < 2) {
+      alert("Please select at least a JSON and OBJ file.");
       return;
     }
 
@@ -159,41 +227,56 @@ document.addEventListener('DOMContentLoaded', () => {
           content: event.target.result,
         };
 
-        if (fileContents.length === 3 && !fileContents.includes(undefined)) {
-          console.log('All files processed:', fileContents);
+        if (fileContents.length === files.length) {
+          console.log("All files processed:", fileContents);
 
           let configFileContent;
-          
+          const objFiles = {};
+          const mtlFiles = {};
+
           fileContents.forEach((fileContent) => {
-            if (fileContent.name.endsWith('.json')) {
+            if (fileContent.name.endsWith(".json")) {
               configFileContent = JSON.parse(fileContent.content);
+            } else if (fileContent.name.endsWith(".obj")) {
+              objFiles[fileContent.name] = fileContent.content;
+            } else if (fileContent.name.endsWith(".mtl")) {
+              mtlFiles[fileContent.name] = fileContent.content;
             }
           });
+
+          const mtlParser = new MTLParser();
+          const materials = {};
+
+          for (const mtlFileName in mtlFiles) {
+            const parsedMaterials = mtlParser.parse(mtlFiles[mtlFileName]);
+            Object.assign(materials, parsedMaterials);
+          }
 
           configFileContent.objects.forEach((objConfig) => {
-            let objFileContent;
-            fileContents.forEach((fileContent) => {
-              if (fileContent.name === objConfig.file) {
-                objFileContent = fileContent.content;
-              }
-            });
-
+            let objFileContent = objFiles[objConfig.file];
             if (objFileContent) {
-              objects.push(new SceneObject(gl, objFileContent, objConfig));
+              const materialName = objConfig.materialName;
+              const material = materialName ? materials[materialName] : null;
+              objects.push(
+                new SceneObject(gl, objFileContent, objConfig, material)
+              );
             }
           });
 
-          cameraPosX = configFileContent.camera.position.x;
-          cameraPosY = configFileContent.camera.position.y;
-          cameraPosZ = configFileContent.camera.position.z;
+          const camera = configFileContent.camera;
+          const frustum = configFileContent.frustum;
 
-          cameraViewX = configFileContent.camera.viewDirection.x;
-          cameraViewY = configFileContent.camera.viewDirection.y;
-          cameraViewZ = configFileContent.camera.viewDirection.z;
+          cameraPosX = camera.position.x;
+          cameraPosY = camera.position.y;
+          cameraPosZ = camera.position.z;
 
-          fov = configFileContent.frustum.fieldOfView;
-          zNear = configFileContent.frustum.nearPlane;
-          zFar = configFileContent.frustum.farPlane;
+          cameraViewX = camera.viewDirection.x;
+          cameraViewY = camera.viewDirection.y;
+          cameraViewZ = camera.viewDirection.z;
+
+          fov = frustum.fieldOfView;
+          zNear = frustum.nearPlane;
+          zFar = frustum.farPlane;
         }
       };
 
@@ -212,63 +295,53 @@ document.addEventListener('DOMContentLoaded', () => {
   generateBezierCurvePoints(curve, numCurvePoints);
   let index = 0;
 
-  console.log('Objects loaded:', objects);
+  console.log("Objects loaded:", objects);
 
   let selectedObject = 0;
 
-  document.addEventListener('keydown', (event) => {
-    if (event.code === 'ArrowRight') {
+  document.addEventListener("keydown", (event) => {
+    if (event.code === "ArrowRight") {
       selectedObject = (selectedObject + 1) % objects.length;
-    } else if (event.code === 'ArrowLeft') {
+    } else if (event.code === "ArrowLeft") {
       selectedObject = (selectedObject - 1 + objects.length) % objects.length;
     }
     console.log(`Selected Object: ${selectedObject}`);
   });
-
-  gl.useProgram(programInfo.program);
 
   const lightPosition = [2.0, 2.0, 2.0];
   const lightColor = [1.0, 1.0, 1.0];
   const objectColor = [1.0, 0.5, 0.31];
   const shininess = 32.0;
 
-  programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, 'uKa');
-  programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, 'uKd');
-  programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, 'uKs');
-
-  var ka = 0.5;
-  var kd = 0.5;
-  var ks = 0.5;
-
   gl.useProgram(programInfo.program);
   gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
   gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
   gl.uniform3fv(programInfo.uniformLocations.objectColor, objectColor);
   gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
-  const sliders = document.querySelectorAll("input[type='range']");
 
+  const sliders = document.querySelectorAll("input[type='range']");
   sliders.forEach((slider) => {
-    slider.addEventListener('input', function () {
+    slider.addEventListener("input", function () {
       const sliderId = slider.id;
       const obj = objects[selectedObject];
-      if (sliderId === 'moveX') obj.position[0] = parseFloat(slider.value);
-      if (sliderId === 'moveY') obj.position[1] = parseFloat(slider.value);
-      if (sliderId === 'moveZ') obj.position[2] = parseFloat(slider.value);
-      if (sliderId === 'rotateX') obj.rotation[0] = parseFloat(slider.value);
-      if (sliderId === 'rotateY') obj.rotation[1] = parseFloat(slider.value);
-      if (sliderId === 'rotateZ') obj.rotation[2] = parseFloat(slider.value);
-      if (sliderId === 'scaleX') obj.scale[0] = parseFloat(slider.value);
-      if (sliderId === 'scaleY') obj.scale[1] = parseFloat(slider.value);
-      if (sliderId === 'scaleZ') obj.scale[2] = parseFloat(slider.value);
-      if (sliderId == 'cameraPosX') cameraPosX = parseFloat(slider.value);
-      if (sliderId == 'cameraPosY') cameraPosY = parseFloat(slider.value);
-      if (sliderId == 'cameraPosZ') cameraPosZ = parseFloat(slider.value);
-      if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
-      if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
-      if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
-      if (sliderId == 'lightKs') obj.ks = parseFloat(slider.value);
-      if (sliderId == 'lightKa') obj.ka = parseFloat(slider.value);
-      if (sliderId == 'lightKd') obj.kd = parseFloat(slider.value);
+      if (sliderId === "moveX") obj.position[0] = parseFloat(slider.value);
+      if (sliderId === "moveY") obj.position[1] = parseFloat(slider.value);
+      if (sliderId === "moveZ") obj.position[2] = parseFloat(slider.value);
+      if (sliderId === "rotateX") obj.rotation[0] = parseFloat(slider.value);
+      if (sliderId === "rotateY") obj.rotation[1] = parseFloat(slider.value);
+      if (sliderId === "rotateZ") obj.rotation[2] = parseFloat(slider.value);
+      if (sliderId === "scaleX") obj.scale[0] = parseFloat(slider.value);
+      if (sliderId === "scaleY") obj.scale[1] = parseFloat(slider.value);
+      if (sliderId === "scaleZ") obj.scale[2] = parseFloat(slider.value);
+      if (sliderId == "cameraPosX") cameraPosX = parseFloat(slider.value);
+      if (sliderId == "cameraPosY") cameraPosY = parseFloat(slider.value);
+      if (sliderId == "cameraPosZ") cameraPosZ = parseFloat(slider.value);
+      if (sliderId == "cameraViewX") cameraViewX = parseFloat(slider.value);
+      if (sliderId == "cameraViewY") cameraViewY = parseFloat(slider.value);
+      if (sliderId == "cameraViewZ") cameraViewZ = parseFloat(slider.value);
+      if (sliderId == "lightKs") obj.ks = parseFloat(slider.value);
+      if (sliderId == "lightKa") obj.ka = parseFloat(slider.value);
+      if (sliderId == "lightKd") obj.kd = parseFloat(slider.value);
     });
   });
 
@@ -283,22 +356,23 @@ document.addEventListener('DOMContentLoaded', () => {
       cameraViewX,
       cameraViewY,
       cameraViewZ,
-      ka,
-      ks,
-      kd,
       45,
       0.1,
       100.0,
       selectedObject
     );
+    tick();
+    requestAnimationFrame(render);
+  }
+
+  function tick() {
     if (objects.length > 0) {
-      for (let i = 0; i < objects.length; i++) {
-        if (objects[i].curve == true) {
-          index = moveObjectInCurve(objects[i], curve, index);
+      for (let obj of objects) {
+        if (obj.curve) {
+          index = moveObjectInCurve(obj, curve, index);
         }
       }
     }
-    requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
@@ -351,9 +425,6 @@ function drawScene(
   cameraViewX,
   cameraViewY,
   cameraViewZ,
-  ka,
-  ks,
-  kd,
   fov,
   zNear,
   zFar,
@@ -394,19 +465,15 @@ function drawScene(
     viewMatrix
   );
 
-  gl.uniform1f(programInfo.uniformLocations.ka, ka);
-  gl.uniform1f(programInfo.uniformLocations.kd, kd);
-  gl.uniform1f(programInfo.uniformLocations.ks, ks);
-
   objects.forEach((obj, index) => {
     const isSelected = index === selectedObject;
     gl.uniform1i(programInfo.uniformLocations.isSelected, isSelected ? 1 : 0);
 
     gl.uniform3fv(programInfo.uniformLocations.objectColor, obj.color);
-
     gl.uniform1f(programInfo.uniformLocations.ka, obj.ka);
     gl.uniform1f(programInfo.uniformLocations.kd, obj.kd);
     gl.uniform1f(programInfo.uniformLocations.ks, obj.ks);
+    gl.uniform1f(programInfo.uniformLocations.shininess, obj.shininess);
 
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix, modelViewMatrix, obj.position);
@@ -491,34 +558,17 @@ function resizeCanvas(canvas) {
 }
 
 function generateElipseControlPoints(numPoints, controlPoints) {
-  // Define o intervalo para t: de 0 a 2 * PI, dividido em numPoints
-  step = (2.0 * 3.14159) / (numPoints - 1.0);
-
-  //let scale = 1;
-  let a = 2;
-  let b = 1;
-
-  for (let i = 0; i < numPoints - 1; i++) {
-    let t = i * step;
-
-    // Calcula x(t) e y(t) usando as fórmulas paramétricas
-    //x = (scale * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
-    //y = (scale * Math.sin(t) * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
-
-    x = a * Math.cos(t);
-    y = b * Math.sin(t);
-
-    // Aumenta o X e Y para a curva ficar maior e melhor de visualizar
-    x *= 2.0;
-    y *= 2.0;
-
-    point = vec3.create();
-    vec3.set(point, x, y, 0.0);
-
-    // Adiciona o ponto ao vetor de pontos de controle
+  const step = (2.0 * 3.14159) / (numPoints - 1.0);
+  const a = 2;
+  const b = 1;
+  
+  for (let i = 0; i < numPoints; i++) {
+    const t = i * step;
+    const x = a * Math.cos(t);
+    const y = b * Math.sin(t);
+    const point = vec3.fromValues(x, y, 0.0);
     controlPoints.push(point);
   }
-  controlPoints.push(controlPoints[0]);
 }
 
 function initializeBernsteinMatrix(matrix) {
