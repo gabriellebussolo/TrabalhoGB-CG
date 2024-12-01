@@ -106,21 +106,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('Shader program initialized');
 
-  // Object structure and initial object load
   const objects = [];
 
   class SceneObject {
     constructor(gl, objStr, objConfig) {
       this.mesh = new OBJ.Mesh(objStr);
       OBJ.initMeshBuffers(gl, this.mesh);
-      this.rotation = objConfig.rotation;
-      this.position = objConfig.position;
-      this.scale = objConfig.scale;
-      this.curve = objConfig.curve;
+      this.rotation = [objConfig.rotation.x, objConfig.rotation.y, objConfig.rotation.z];
+      this.position = [objConfig.position.x, objConfig.position.y, objConfig.position.z];
+      this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
+      this.curve = objConfig.isMovingAlongCurve;
       this.color = [1.0, 0.5, 0.31]; // Default color
-      this.ka = objConfig.lightingCoefficients[0];
-      this.kd = objConfig.lightingCoefficients[1];
-      this.ks = objConfig.lightingCoefficients[2];
+      this.ka = objConfig.material.ka;
+      this.kd = objConfig.material.kd;
+      this.ks = objConfig.material.ks;
     }
   }
 
@@ -164,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log('All files processed:', fileContents);
 
           let configFileContent;
+          
           fileContents.forEach((fileContent) => {
             if (fileContent.name.endsWith('.json')) {
               configFileContent = JSON.parse(fileContent.content);
@@ -183,17 +183,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           });
 
-          cameraPosX = configFileContent.camera.position[0];
-          cameraPosY = configFileContent.camera.position[1];
-          cameraPosZ = configFileContent.camera.position[2];
+          cameraPosX = configFileContent.camera.position.x;
+          cameraPosY = configFileContent.camera.position.y;
+          cameraPosZ = configFileContent.camera.position.z;
 
-          cameraViewX = configFileContent.camera.view[0];
-          cameraViewY = configFileContent.camera.view[1];
-          cameraViewZ = configFileContent.camera.view[2];
+          cameraViewX = configFileContent.camera.viewDirection.x;
+          cameraViewY = configFileContent.camera.viewDirection.y;
+          cameraViewZ = configFileContent.camera.viewDirection.z;
 
-          fov = configFileContent.frustrum.fov;
-          zNear = configFileContent.frustrum.zNear;
-          zFar = configFileContent.frustrum.zFar;
+          fov = configFileContent.frustum.fieldOfView;
+          zNear = configFileContent.frustum.nearPlane;
+          zFar = configFileContent.frustum.farPlane;
         }
       };
 
@@ -394,7 +394,6 @@ function drawScene(
     viewMatrix
   );
 
-  // Atualizar os valores Ka, Kd, Ks no shader
   gl.uniform1f(programInfo.uniformLocations.ka, ka);
   gl.uniform1f(programInfo.uniformLocations.kd, kd);
   gl.uniform1f(programInfo.uniformLocations.ks, ks);
@@ -403,7 +402,6 @@ function drawScene(
     const isSelected = index === selectedObject;
     gl.uniform1i(programInfo.uniformLocations.isSelected, isSelected ? 1 : 0);
 
-    // Definir a cor do objeto
     gl.uniform3fv(programInfo.uniformLocations.objectColor, obj.color);
 
     gl.uniform1f(programInfo.uniformLocations.ka, obj.ka);
@@ -412,7 +410,6 @@ function drawScene(
 
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix, modelViewMatrix, obj.position);
-
     mat4.rotateX(
       modelViewMatrix,
       modelViewMatrix,
@@ -428,7 +425,6 @@ function drawScene(
       modelViewMatrix,
       (obj.rotation[2] * Math.PI) / 180.0
     );
-
     mat4.scale(modelViewMatrix, modelViewMatrix, obj.scale);
 
     const normalMatrix = mat4.create();
@@ -446,7 +442,6 @@ function drawScene(
       normalMatrix
     );
 
-    // Configure position buffers
     {
       const vertexPosition = obj.mesh.vertexBuffer;
       gl.bindBuffer(gl.ARRAY_BUFFER, vertexPosition);
@@ -461,7 +456,6 @@ function drawScene(
       gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
     }
 
-    // Configure normal buffers
     {
       const vertexNormal = obj.mesh.normalBuffer;
       gl.bindBuffer(gl.ARRAY_BUFFER, vertexNormal);
@@ -476,7 +470,6 @@ function drawScene(
       gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal);
     }
 
-    // Draw the object
     {
       const indexBuffer = obj.mesh.indexBuffer;
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);

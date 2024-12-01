@@ -2,28 +2,68 @@
   "objects": [
     {
       "file": "cube.obj",
-      "rotation": [0.0, 0.0, 0.0],
-      "position": [-1.5, 0.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "curve": false,
-      "lightingCoefficients": [0.3, 0.7, 0.9]
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "position": {
+        "x": -1.5,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "isMovingAlongCurve": false,
+      "material": {
+        "ka": 0.3,
+        "kd": 0.7,
+        "ks": 0.9
+      }
     },
     {
       "file": "triangle.obj",
-      "rotation": [0.0, 0.0, 0.0],
-      "position": [1.5, 0.0, 0.0],
-      "scale": [1.0, 1.0, 1.0],
-      "curve": true,
-      "lightingCoefficients": [0.4, 0.5, 0.8]
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "position": {
+        "x": 1.5,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "isMovingAlongCurve": true,
+      "material": {
+        "ka": 0.4,
+        "kd": 0.5,
+        "ks": 0.8
+      }
     }
   ],
   "camera": {
-    "position": [0.0, 0.0, 10.0],
-    "view": [0.0, 0.0, 0.0]
+    "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 10.0
+    },
+    "viewDirection": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    }
   },
-  "frustrum": {
-    "fov": 45,
-    "zNear": 0.1,
-    "zFar": 100
+  "frustum": {
+    "fieldOfView": 45,
+    "nearPlane": 0.1,
+    "farPlane": 100
   }
 }
