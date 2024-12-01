@@ -1,23 +1,109 @@
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM fully loaded and parsed');
+class SceneObject {
+  constructor(gl, objStr, objConfig, material) {
+    this.mesh = new OBJ.Mesh(objStr);
+    OBJ.initMeshBuffers(gl, this.mesh);
 
-  const canvas = document.getElementById('glcanvas');
+    this.rotation = [
+      objConfig.rotation.x,
+      objConfig.rotation.y,
+      objConfig.rotation.z,
+    ];
+    this.position = [
+      objConfig.position.x,
+      objConfig.position.y,
+      objConfig.position.z,
+    ];
+    this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
+    this.curve = objConfig.isMovingAlongCurve;
+
+    if (material) {
+      this.color = material.diffuse || [1.0, 1.0, 1.0];
+      this.ka = (material.ambient && material.ambient[0]) || 0.1;
+      this.kd = (material.diffuse && material.diffuse[0]) || 0.6;
+      this.ks = (material.specular && material.specular[0]) || 0.3;
+      this.shininess = material.shininess || 32.0;
+    } else {
+      this.color = [1.0, 0.5, 0.31];
+      this.ka = 0.5;
+      this.kd = 0.7;
+      this.ks = 0.9;
+      this.shininess = 32.0;
+    }
+  }
+}
+
+class MTLParser {
+  constructor() {
+    this.materials = {};
+  }
+
+  parse(mtlFileContent) {
+    const lines = mtlFileContent.split("\n");
+    let currentMaterial = null;
+
+    lines.forEach((line) => {
+      line = line.trim();
+      const parts = line.split(/\s+/);
+      const type = parts[0];
+
+      switch (type) {
+        case "newmtl":
+          currentMaterial = parts[1];
+          this.materials[currentMaterial] = {};
+          break;
+        case "Kd":
+          if (currentMaterial) {
+            this.materials[currentMaterial].diffuse = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ka":
+          if (currentMaterial) {
+            this.materials[currentMaterial].ambient = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ks":
+          if (currentMaterial) {
+            this.materials[currentMaterial].specular = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ns":
+          if (currentMaterial) {
+            this.materials[currentMaterial].shininess = parseFloat(parts[1]);
+          }
+          break;
+      }
+    });
+
+    return this.materials;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM fully loaded and parsed");
+
+  const canvas = document.getElementById("glcanvas");
   resizeCanvas(canvas);
-  window.addEventListener('resize', () => resizeCanvas(canvas));
+  window.addEventListener("resize", () => resizeCanvas(canvas));
 
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
 
   if (!gl) {
-    console.error('WebGL not supported, falling back on experimental-webgl');
-    gl = canvas.getContext('experimental-webgl');
+    console.error("WebGL not supported, falling back on experimental-webgl");
+    gl = canvas.getContext("experimental-webgl");
   }
 
   if (!gl) {
-    alert('Your browser does not support WebGL');
+    alert("Your browser does not support WebGL");
     return;
   }
 
-  console.log('WebGL context obtained');
+  console.log("WebGL context obtained");
 
   // Vertex and Fragment shader programs (unchanged)
   const vsSource = `
@@ -84,115 +170,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+      vertexNormal: gl.getAttribLocation(shaderProgram, "aVertexNormal"),
     },
     uniformLocations: {
-      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
-      viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
-      lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
-      viewPosition: gl.getUniformLocation(shaderProgram, 'uViewPosition'),
-      objectColor: gl.getUniformLocation(shaderProgram, 'uObjectColor'),
-      shininess: gl.getUniformLocation(shaderProgram, 'uShininess'),
-      isSelected: gl.getUniformLocation(shaderProgram, 'uIsSelected'),
-      ka: gl.getUniformLocation(shaderProgram, 'uKa'),
-      kd: gl.getUniformLocation(shaderProgram, 'uKd'),
-      ks: gl.getUniformLocation(shaderProgram, 'uKs')
+      projectionMatrix: gl.getUniformLocation(
+        shaderProgram,
+        "uProjectionMatrix"
+      ),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
+      viewMatrix: gl.getUniformLocation(shaderProgram, "uViewMatrix"),
+      normalMatrix: gl.getUniformLocation(shaderProgram, "uNormalMatrix"),
+      lightPosition: gl.getUniformLocation(shaderProgram, "uLightPosition"),
+      lightColor: gl.getUniformLocation(shaderProgram, "uLightColor"),
+      viewPosition: gl.getUniformLocation(shaderProgram, "uViewPosition"),
+      objectColor: gl.getUniformLocation(shaderProgram, "uObjectColor"),
+      shininess: gl.getUniformLocation(shaderProgram, "uShininess"),
+      isSelected: gl.getUniformLocation(shaderProgram, "uIsSelected"),
+      ka: gl.getUniformLocation(shaderProgram, "uKa"),
+      kd: gl.getUniformLocation(shaderProgram, "uKd"),
+      ks: gl.getUniformLocation(shaderProgram, "uKs"),
     },
   };
 
-  console.log('Shader program initialized');
+  console.log("Shader program initialized");
 
   const objects = [];
-
-  class SceneObject {
-    constructor(gl, objStr, objConfig, material) {
-      this.mesh = new OBJ.Mesh(objStr);
-      OBJ.initMeshBuffers(gl, this.mesh);
-
-      this.rotation = [
-        objConfig.rotation.x,
-        objConfig.rotation.y,
-        objConfig.rotation.z,
-      ];
-      this.position = [
-        objConfig.position.x,
-        objConfig.position.y,
-        objConfig.position.z,
-      ];
-      this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
-      this.curve = objConfig.isMovingAlongCurve;
-
-      if (material) {
-        this.color = material.diffuse || [1.0, 1.0, 1.0];
-        this.ka = (material.ambient && material.ambient[0]) || 0.1;
-        this.kd = (material.diffuse && material.diffuse[0]) || 0.6;
-        this.ks = (material.specular && material.specular[0]) || 0.3;
-        this.shininess = material.shininess || 32.0;
-      } else {
-        this.color = [1.0, 0.5, 0.31];
-        this.ka = 0.5;
-        this.kd = 0.7;
-        this.ks = 0.9;
-        this.shininess = 32.0;
-      }
-    }
-  }
-
-  class MTLParser {
-    constructor() {
-      this.materials = {};
-    }
-
-    parse(mtlFileContent) {
-      const lines = mtlFileContent.split("\n");
-      let currentMaterial = null;
-
-      lines.forEach((line) => {
-        line = line.trim();
-        const parts = line.split(/\s+/);
-        const type = parts[0];
-
-        switch (type) {
-          case "newmtl":
-            currentMaterial = parts[1];
-            this.materials[currentMaterial] = {};
-            break;
-          case "Kd":
-            if (currentMaterial) {
-              this.materials[currentMaterial].diffuse = parts
-                .slice(1)
-                .map(parseFloat);
-            }
-            break;
-          case "Ka":
-            if (currentMaterial) {
-              this.materials[currentMaterial].ambient = parts
-                .slice(1)
-                .map(parseFloat);
-            }
-            break;
-          case "Ks":
-            if (currentMaterial) {
-              this.materials[currentMaterial].specular = parts
-                .slice(1)
-                .map(parseFloat);
-            }
-            break;
-          case "Ns":
-            if (currentMaterial) {
-              this.materials[currentMaterial].shininess = parseFloat(parts[1]);
-            }
-            break;
-        }
-      });
-
-      return this.materials;
-    }
-  }
 
   let cameraPosX = 0.0,
     cameraPosY = 0.0,
@@ -389,7 +392,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     console.error(
-      'Unable to initialize the shader program: ' +
+      "Unable to initialize the shader program: " +
         gl.getProgramInfoLog(shaderProgram)
     );
     return null;
@@ -406,7 +409,7 @@ function loadShader(gl, type, source) {
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     console.error(
-      'An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader)
+      "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader)
     );
     gl.deleteShader(shader);
     return null;
@@ -553,7 +556,7 @@ function drawScene(
 function resizeCanvas(canvas) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
@@ -561,7 +564,7 @@ function generateElipseControlPoints(numPoints, controlPoints) {
   const step = (2.0 * 3.14159) / (numPoints - 1.0);
   const a = 2;
   const b = 1;
-  
+
   for (let i = 0; i < numPoints; i++) {
     const t = i * step;
     const x = a * Math.cos(t);
