@@ -1,7 +1,7 @@
 {
   "objects": [
     {
-      "file": "cube.obj",
+      "file": "earth.obj",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
@@ -18,14 +18,10 @@
         "z": 1.0
       },
       "isMovingAlongCurve": false,
-      "material": {
-        "ka": 0.3,
-        "kd": 0.7,
-        "ks": 0.9
-      }
+      "materialName": "material_0"
     },
     {
-      "file": "triangle.obj",
+      "file": "moon.obj",
       "rotation": {
         "x": 0.0,
         "y": 0.0,
@@ -42,11 +38,7 @@
         "z": 1.0
       },
       "isMovingAlongCurve": true,
-      "material": {
-        "ka": 0.4,
-        "kd": 0.5,
-        "ks": 0.8
-      }
+      "materialName": "material_1"
     }
   ],
   "camera": {
@@ -64,6 +56,6 @@
   "frustum": {
     "fieldOfView": 45,
     "nearPlane": 0.1,
-    "farPlane": 100
+    "farPlane": 100.0
   }
 }

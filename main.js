@@ -1,150 +1,306 @@
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM fully loaded and parsed');
+class SceneObject {
+  constructor(gl, objStr, objConfig, material) {
+    this.gl = gl;
+    this.mesh = new OBJ.Mesh(objStr);
+    OBJ.initMeshBuffers(gl, this.mesh);
 
-  const canvas = document.getElementById('glcanvas');
+    this.rotation = [
+      objConfig.rotation.x,
+      objConfig.rotation.y,
+      objConfig.rotation.z,
+    ];
+    this.position = [
+      objConfig.position.x,
+      objConfig.position.y,
+      objConfig.position.z,
+    ];
+    this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
+    this.curve = objConfig.isMovingAlongCurve;
+
+    if (material) {
+      this.color = material.diffuse || [1.0, 1.0, 1.0];
+      this.ka = (material.ambient && material.ambient[0]) || 0.1;
+      this.kd = (material.diffuse && material.diffuse[0]) || 0.6;
+      this.ks = (material.specular && material.specular[0]) || 0.3;
+      this.shininess = material.shininess || 32.0;
+
+      if (material.texture) {
+        this.texture = loadTexture(gl, material.texture);
+      }
+    } else {
+      this.color = [1.0, 0.5, 0.31];
+      this.ka = 0.5;
+      this.kd = 0.7;
+      this.ks = 0.9;
+      this.shininess = 32.0;
+    }
+  }
+
+  // Method to draw the object
+  draw(programInfo) {
+    const gl = this.gl;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh.vertexBuffer);
+    gl.vertexAttribPointer(
+      programInfo.attribLocations.vertexPosition,
+      3,
+      gl.FLOAT,
+      false,
+      0,
+      0
+    );
+    gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+
+    if (this.mesh.normalBuffer) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.mesh.normalBuffer);
+      gl.vertexAttribPointer(
+        programInfo.attribLocations.vertexNormal,
+        3,
+        gl.FLOAT,
+        false,
+        0,
+        0
+      );
+      gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal);
+    }
+
+    if (this.texture) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+    }
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mesh.indexBuffer);
+
+    const ambient = gl.getUniformLocation(programInfo.program, "uKa");
+    const diffuse = gl.getUniformLocation(programInfo.program, "uKd");
+    const specular = gl.getUniformLocation(programInfo.program, "uKs");
+    const shininess = gl.getUniformLocation(programInfo.program, "uShininess");
+    const isSelected = gl.getUniformLocation(
+      programInfo.program,
+      "uIsSelected"
+    );
+    const objectColor = gl.getUniformLocation(
+      programInfo.program,
+      "uObjectColor"
+    );
+
+    gl.uniform3fv(objectColor, this.color);
+    gl.uniform1f(ambient, this.ka);
+    gl.uniform1f(diffuse, this.kd);
+    gl.uniform1f(specular, this.ks);
+    gl.uniform1f(shininess, this.shininess);
+    gl.uniform1f(isSelected, false);
+
+    gl.drawElements(
+      gl.TRIANGLES,
+      this.mesh.indexBuffer.numItems,
+      gl.UNSIGNED_SHORT,
+      0
+    );
+  }
+}
+
+class MTLParser {
+  constructor() {
+    this.materials = {};
+  }
+
+  parse(mtlFileContent) {
+    const lines = mtlFileContent.split("\n");
+    let currentMaterial = null;
+
+    lines.forEach((line) => {
+      line = line.trim();
+      const parts = line.split(/\s+/);
+      const type = parts[0];
+
+      switch (type) {
+        case "newmtl":
+          currentMaterial = parts[1];
+          this.materials[currentMaterial] = {};
+          break;
+        case "Kd":
+          if (currentMaterial) {
+            this.materials[currentMaterial].diffuse = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ka":
+          if (currentMaterial) {
+            this.materials[currentMaterial].ambient = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ks":
+          if (currentMaterial) {
+            this.materials[currentMaterial].specular = parts
+              .slice(1)
+              .map(parseFloat);
+          }
+          break;
+        case "Ns":
+          if (currentMaterial) {
+            this.materials[currentMaterial].shininess = parseFloat(parts[1]);
+          }
+          break;
+        case "map_Kd":
+          if (currentMaterial) {
+            this.materials[currentMaterial].texture = parts[1];
+          }
+          break;
+      }
+    });
+
+    return this.materials;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM fully loaded and parsed");
+
+  const canvas = document.getElementById("glcanvas");
   resizeCanvas(canvas);
-  window.addEventListener('resize', () => resizeCanvas(canvas));
+  window.addEventListener("resize", () => resizeCanvas(canvas));
 
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
 
   if (!gl) {
-    console.error('WebGL not supported, falling back on experimental-webgl');
-    gl = canvas.getContext('experimental-webgl');
+    console.error("WebGL not supported, falling back on experimental-webgl");
+    gl = canvas.getContext("experimental-webgl");
   }
 
   if (!gl) {
-    alert('Your browser does not support WebGL');
+    alert("Your browser does not support WebGL");
     return;
   }
 
-  console.log('WebGL context obtained');
-  
+  console.log("WebGL context obtained");
+
   // Vertex and Fragment shader programs (unchanged)
   const vsSource = `
-          attribute vec4 aVertexPosition;
-          attribute vec3 aVertexNormal;
-  
-          uniform mat4 uNormalMatrix;
-          uniform mat4 uModelViewMatrix;
-          uniform mat4 uProjectionMatrix;
-          uniform mat4 uViewMatrix;
-  
-          varying vec3 vNormal;
-          varying vec3 vFragPos;
-  
-          void main(void) {
-            vec4 fragPos = uModelViewMatrix * aVertexPosition;
-            vFragPos = fragPos.xyz;
-            vNormal = mat3(uNormalMatrix) * aVertexNormal;
-            gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
-        }
-    `;
+    attribute vec4 aVertexPosition;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uNormalMatrix;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uViewMatrix;
+
+    varying vec3 vNormal;
+    varying vec3 vFragPos;
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+      vec4 fragPos = uModelViewMatrix * aVertexPosition;
+      vFragPos = fragPos.xyz;
+      vNormal = mat3(uNormalMatrix) * aVertexNormal;
+      gl_Position = uProjectionMatrix * uViewMatrix * fragPos;
+      vTextureCoord = aVertexPosition.xy;  // Assuming you use XYZ world positions as coordinates for simplicity
+    }
+  `;
 
   const fsSource = `
-        precision highp float;
-  
-        varying vec3 vNormal;
-        varying vec3 vFragPos;
-  
-        uniform vec3 uLightPosition;
-        uniform vec3 uLightColor;
-        uniform vec3 uViewPosition;
-  
-        uniform vec3 uObjectColor;
-        uniform float uShininess;
-        uniform bool uIsSelected; 
-  
-        uniform float uKa; 
-        uniform float uKd; 
-        uniform float uKs; 
+    precision highp float;
 
-        void main(void) {
-            vec3 norm = normalize(vNormal);
-            vec3 lightDir = normalize(uLightPosition - vFragPos);
-
-            vec3 ambient = uKa * uLightColor;
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = uKd * diff * uLightColor;
-            vec3 viewDir = normalize(-vFragPos);
-            vec3 reflectDir = reflect(-lightDir, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-            vec3 specular = uKs * spec * uLightColor;
-
-            vec3 finalColor = uObjectColor;
-            if (uIsSelected) {
-                finalColor = vec3(1.0, 0.0, 0.0);
-            }
-              
-            vec3 result = (ambient + diffuse + specular) * finalColor;
-            gl_FragColor = vec4(result, 1.0);
-        }
-    `;
+    varying vec3 vNormal;
+    varying vec3 vFragPos;
+    varying vec2 vTextureCoord;  // Add texture coordinate varying
+    
+    uniform vec3 uLightPosition;
+    uniform vec3 uLightColor;
+    uniform vec3 uViewPosition;
+    
+    uniform vec3 uObjectColor;
+    uniform bool uHasTexture;
+    uniform sampler2D uSampler;  // Add texture sampler
+    
+    uniform float uKa; 
+    uniform float uKd; 
+    uniform float uKs; 
+    uniform float uShininess;
+    uniform bool uIsSelected; 
+    
+    void main(void) {
+      vec3 norm = normalize(vNormal);
+      vec3 lightDir = normalize(uLightPosition - vFragPos);
+    
+      vec3 ambient = uKa * uLightColor;
+      float diff = max(dot(norm, lightDir), 0.0);
+      vec3 diffuse = uKd * diff * uLightColor;
+    
+      vec3 viewDir = normalize(-vFragPos);
+      vec3 reflectDir = reflect(-lightDir, norm);
+      float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
+      vec3 specular = uKs * spec * uLightColor;
+    
+      vec3 finalColor = uObjectColor;
+      if (uIsSelected) {
+        finalColor = vec3(1.0, 0.0, 0.0);
+      }
+    
+      if (uHasTexture) {
+        vec4 texColor = texture2D(uSampler, vTextureCoord);
+        finalColor = texColor.rgb;
+      }
+    
+      vec3 result = (ambient + diffuse + specular) * finalColor;
+      gl_FragColor = vec4(result, 1.0);
+    }
+  `;
 
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
+      vertexNormal: gl.getAttribLocation(shaderProgram, "aVertexNormal"),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(
         shaderProgram,
-        'uProjectionMatrix'
+        "uProjectionMatrix"
       ),
-      modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
-      viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-      lightPosition: gl.getUniformLocation(shaderProgram, 'uLightPosition'),
-      lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
-      viewPosition: gl.getUniformLocation(shaderProgram, 'uViewPosition'),
-      objectColor: gl.getUniformLocation(shaderProgram, 'uObjectColor'),
-      shininess: gl.getUniformLocation(shaderProgram, 'uShininess'),
-      isSelected: gl.getUniformLocation(shaderProgram, 'uIsSelected'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram, "uModelViewMatrix"),
+      viewMatrix: gl.getUniformLocation(shaderProgram, "uViewMatrix"),
+      normalMatrix: gl.getUniformLocation(shaderProgram, "uNormalMatrix"),
+      lightPosition: gl.getUniformLocation(shaderProgram, "uLightPosition"),
+      lightColor: gl.getUniformLocation(shaderProgram, "uLightColor"),
+      viewPosition: gl.getUniformLocation(shaderProgram, "uViewPosition"),
+      objectColor: gl.getUniformLocation(shaderProgram, "uObjectColor"),
+      shininess: gl.getUniformLocation(shaderProgram, "uShininess"),
+      isSelected: gl.getUniformLocation(shaderProgram, "uIsSelected"),
+      ka: gl.getUniformLocation(shaderProgram, "uKa"),
+      kd: gl.getUniformLocation(shaderProgram, "uKd"),
+      ks: gl.getUniformLocation(shaderProgram, "uKs"),
     },
   };
 
-  console.log('Shader program initialized');
+  console.log("Shader program initialized");
 
   const objects = [];
-
-  class SceneObject {
-    constructor(gl, objStr, objConfig) {
-      this.mesh = new OBJ.Mesh(objStr);
-      OBJ.initMeshBuffers(gl, this.mesh);
-      this.rotation = [objConfig.rotation.x, objConfig.rotation.y, objConfig.rotation.z];
-      this.position = [objConfig.position.x, objConfig.position.y, objConfig.position.z];
-      this.scale = [objConfig.scale.x, objConfig.scale.y, objConfig.scale.z];
-      this.curve = objConfig.isMovingAlongCurve;
-      this.color = [1.0, 0.5, 0.31]; // Default color
-      this.ka = objConfig.material.ka;
-      this.kd = objConfig.material.kd;
-      this.ks = objConfig.material.ks;
-    }
-  }
 
   let cameraPosX = 0.0,
     cameraPosY = 0.0,
     cameraPosZ = 0.0;
-
   let cameraViewX = 0.0,
     cameraViewY = 0.0,
     cameraViewZ = 0.0;
-
   let fov = 45,
     zNear = 0.1,
     zFar = 100.0;
 
-  const fileInput = document.getElementById('fileInput');
-  const processButton = document.getElementById('processFiles');
+  const fileInput = document.getElementById("fileInput");
+  const processButton = document.getElementById("processFiles");
 
   let fileContents = [];
 
-  processButton.addEventListener('click', () => {
+  processButton.addEventListener("click", () => {
     const files = fileInput.files;
-
-    if (files.length !== 3) {
-      alert('Please select exactly 3 files.');
+    if (files.length < 2) {
+      alert("Please select at least a JSON and OBJ file.");
       return;
     }
 
@@ -159,41 +315,54 @@ document.addEventListener('DOMContentLoaded', () => {
           content: event.target.result,
         };
 
-        if (fileContents.length === 3 && !fileContents.includes(undefined)) {
-          console.log('All files processed:', fileContents);
-
+        if (fileContents.length === files.length) {
           let configFileContent;
-          
+          const objFiles = {};
+          const mtlFiles = {};
+
           fileContents.forEach((fileContent) => {
-            if (fileContent.name.endsWith('.json')) {
+            if (fileContent.name.endsWith(".json")) {
               configFileContent = JSON.parse(fileContent.content);
+            } else if (fileContent.name.endsWith(".obj")) {
+              objFiles[fileContent.name] = fileContent.content;
+            } else if (fileContent.name.endsWith(".mtl")) {
+              mtlFiles[fileContent.name] = fileContent.content;
             }
           });
+
+          const mtlParser = new MTLParser();
+          const materials = {};
+
+          for (const mtlFileName in mtlFiles) {
+            const parsedMaterials = mtlParser.parse(mtlFiles[mtlFileName]);
+            Object.assign(materials, parsedMaterials);
+          }
 
           configFileContent.objects.forEach((objConfig) => {
-            let objFileContent;
-            fileContents.forEach((fileContent) => {
-              if (fileContent.name === objConfig.file) {
-                objFileContent = fileContent.content;
-              }
-            });
-
+            let objFileContent = objFiles[objConfig.file];
             if (objFileContent) {
-              objects.push(new SceneObject(gl, objFileContent, objConfig));
+              const materialName = objConfig.materialName;
+              const material = materialName ? materials[materialName] : null;
+              objects.push(
+                new SceneObject(gl, objFileContent, objConfig, material)
+              );
             }
           });
 
-          cameraPosX = configFileContent.camera.position.x;
-          cameraPosY = configFileContent.camera.position.y;
-          cameraPosZ = configFileContent.camera.position.z;
+          const camera = configFileContent.camera;
+          const frustum = configFileContent.frustum;
 
-          cameraViewX = configFileContent.camera.viewDirection.x;
-          cameraViewY = configFileContent.camera.viewDirection.y;
-          cameraViewZ = configFileContent.camera.viewDirection.z;
+          cameraPosX = camera.position.x;
+          cameraPosY = camera.position.y;
+          cameraPosZ = camera.position.z;
 
-          fov = configFileContent.frustum.fieldOfView;
-          zNear = configFileContent.frustum.nearPlane;
-          zFar = configFileContent.frustum.farPlane;
+          cameraViewX = camera.viewDirection.x;
+          cameraViewY = camera.viewDirection.y;
+          cameraViewZ = camera.viewDirection.z;
+
+          fov = frustum.fieldOfView;
+          zNear = frustum.nearPlane;
+          zFar = frustum.farPlane;
         }
       };
 
@@ -212,63 +381,53 @@ document.addEventListener('DOMContentLoaded', () => {
   generateBezierCurvePoints(curve, numCurvePoints);
   let index = 0;
 
-  console.log('Objects loaded:', objects);
+  console.log("Objects loaded:", objects);
 
   let selectedObject = 0;
 
-  document.addEventListener('keydown', (event) => {
-    if (event.code === 'ArrowRight') {
+  document.addEventListener("keydown", (event) => {
+    if (event.code === "ArrowRight") {
       selectedObject = (selectedObject + 1) % objects.length;
-    } else if (event.code === 'ArrowLeft') {
+    } else if (event.code === "ArrowLeft") {
       selectedObject = (selectedObject - 1 + objects.length) % objects.length;
     }
     console.log(`Selected Object: ${selectedObject}`);
   });
-
-  gl.useProgram(programInfo.program);
 
   const lightPosition = [2.0, 2.0, 2.0];
   const lightColor = [1.0, 1.0, 1.0];
   const objectColor = [1.0, 0.5, 0.31];
   const shininess = 32.0;
 
-  programInfo.uniformLocations.ka = gl.getUniformLocation(shaderProgram, 'uKa');
-  programInfo.uniformLocations.kd = gl.getUniformLocation(shaderProgram, 'uKd');
-  programInfo.uniformLocations.ks = gl.getUniformLocation(shaderProgram, 'uKs');
-
-  var ka = 0.5;
-  var kd = 0.5;
-  var ks = 0.5;
-
   gl.useProgram(programInfo.program);
   gl.uniform3fv(programInfo.uniformLocations.lightPosition, lightPosition);
   gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
   gl.uniform3fv(programInfo.uniformLocations.objectColor, objectColor);
   gl.uniform1f(programInfo.uniformLocations.shininess, shininess);
-  const sliders = document.querySelectorAll("input[type='range']");
 
+  const sliders = document.querySelectorAll("input[type='range']");
   sliders.forEach((slider) => {
-    slider.addEventListener('input', function () {
+    slider.addEventListener("input", function () {
       const sliderId = slider.id;
       const obj = objects[selectedObject];
-      if (sliderId === 'moveX') obj.position[0] = parseFloat(slider.value);
-      if (sliderId === 'moveY') obj.position[1] = parseFloat(slider.value);
-      if (sliderId === 'moveZ') obj.position[2] = parseFloat(slider.value);
-      if (sliderId === 'rotateX') obj.rotation[0] = parseFloat(slider.value);
-      if (sliderId === 'rotateY') obj.rotation[1] = parseFloat(slider.value);
-      if (sliderId === 'rotateZ') obj.rotation[2] = parseFloat(slider.value);
-      if (sliderId === 'scaleX') obj.scale[0] = parseFloat(slider.value);
-      if (sliderId === 'scaleY') obj.scale[1] = parseFloat(slider.value);
-      if (sliderId === 'scaleZ') obj.scale[2] = parseFloat(slider.value);
-      if (sliderId == 'cameraPosX') cameraPosX = parseFloat(slider.value);
-      if (sliderId == 'cameraPosY') cameraPosY = parseFloat(slider.value);
-      if (sliderId == 'cameraPosZ') cameraPosZ = parseFloat(slider.value);
-      if (sliderId == 'cameraViewX') cameraViewX = parseFloat(slider.value);
-      if (sliderId == 'cameraViewY') cameraViewY = parseFloat(slider.value);
-      if (sliderId == 'cameraViewZ') cameraViewZ = parseFloat(slider.value);
-      if (sliderId == 'lightKs') obj.ks = parseFloat(slider.value);
-      if (sliderId == 'lightKa') obj.ka = parseFloat(slider.value);
-      if (sliderId == 'lightKd') obj.kd = parseFloat(slider.value);
+      if (sliderId === "moveX") obj.position[0] = parseFloat(slider.value);
+      if (sliderId === "moveY") obj.position[1] = parseFloat(slider.value);
+      if (sliderId === "moveZ") obj.position[2] = parseFloat(slider.value);
+      if (sliderId === "rotateX") obj.rotation[0] = parseFloat(slider.value);
+      if (sliderId === "rotateY") obj.rotation[1] = parseFloat(slider.value);
+      if (sliderId === "rotateZ") obj.rotation[2] = parseFloat(slider.value);
+      if (sliderId === "scaleX") obj.scale[0] = parseFloat(slider.value);
+      if (sliderId === "scaleY") obj.scale[1] = parseFloat(slider.value);
+      if (sliderId === "scaleZ") obj.scale[2] = parseFloat(slider.value);
+      if (sliderId == "cameraPosX") cameraPosX = parseFloat(slider.value);
+      if (sliderId == "cameraPosY") cameraPosY = parseFloat(slider.value);
+      if (sliderId == "cameraPosZ") cameraPosZ = parseFloat(slider.value);
+      if (sliderId == "cameraViewX") cameraViewX = parseFloat(slider.value);
+      if (sliderId == "cameraViewY") cameraViewY = parseFloat(slider.value);
+      if (sliderId == "cameraViewZ") cameraViewZ = parseFloat(slider.value);
+      if (sliderId == "lightKs") obj.ks = parseFloat(slider.value);
+      if (sliderId == "lightKa") obj.ka = parseFloat(slider.value);
+      if (sliderId == "lightKd") obj.kd = parseFloat(slider.value);
     });
   });
 
@@ -283,22 +442,32 @@ document.addEventListener('DOMContentLoaded', () => {
       cameraViewX,
       cameraViewY,
       cameraViewZ,
-      ka,
-      ks,
-      kd,
       45,
       0.1,
       100.0,
       selectedObject
     );
+    gl.useProgram(programInfo.program);
+
+    objects.forEach((object) => {
+      gl.uniform1i(
+        gl.getUniformLocation(shaderProgram, "uHasTexture"),
+        object.texture ? 1 : 0
+      );
+      object.draw(programInfo);
+    });
+    tick();
+    requestAnimationFrame(render);
+  }
+
+  function tick() {
     if (objects.length > 0) {
-      for (let i = 0; i < objects.length; i++) {
-        if (objects[i].curve == true) {
-          index = moveObjectInCurve(objects[i], curve, index);
+      for (let obj of objects) {
+        if (obj.curve) {
+          index = moveObjectInCurve(obj, curve, index);
         }
       }
     }
-    requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
@@ -315,7 +484,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
 
   if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
     console.error(
-      'Unable to initialize the shader program: ' +
+      "Unable to initialize the shader program: " +
         gl.getProgramInfoLog(shaderProgram)
     );
     return null;
@@ -332,13 +501,50 @@ function loadShader(gl, type, source) {
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     console.error(
-      'An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader)
+      "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader)
     );
     gl.deleteShader(shader);
     return null;
   }
 
   return shader;
+}
+
+function loadTexture(gl, url) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Temporary pixel while the texture is loaded
+  const pixel = new Uint8Array([255, 255, 255, 255]);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    pixel
+  );
+
+  const image = new Image();
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // WebGL parameters for texture
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(
+      gl.TEXTURE_2D,
+      gl.TEXTURE_MIN_FILTER,
+      gl.LINEAR_MIPMAP_LINEAR
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  };
+  image.src = url;
+
+  return texture;
 }
 
 function drawScene(
@@ -351,9 +557,6 @@ function drawScene(
   cameraViewX,
   cameraViewY,
   cameraViewZ,
-  ka,
-  ks,
-  kd,
   fov,
   zNear,
   zFar,
@@ -394,19 +597,15 @@ function drawScene(
     viewMatrix
   );
 
-  gl.uniform1f(programInfo.uniformLocations.ka, ka);
-  gl.uniform1f(programInfo.uniformLocations.kd, kd);
-  gl.uniform1f(programInfo.uniformLocations.ks, ks);
-
   objects.forEach((obj, index) => {
     const isSelected = index === selectedObject;
     gl.uniform1i(programInfo.uniformLocations.isSelected, isSelected ? 1 : 0);
 
     gl.uniform3fv(programInfo.uniformLocations.objectColor, obj.color);
-
     gl.uniform1f(programInfo.uniformLocations.ka, obj.ka);
     gl.uniform1f(programInfo.uniformLocations.kd, obj.kd);
     gl.uniform1f(programInfo.uniformLocations.ks, obj.ks);
+    gl.uniform1f(programInfo.uniformLocations.shininess, obj.shininess);
 
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix, modelViewMatrix, obj.position);
@@ -486,39 +685,22 @@ function drawScene(
 function resizeCanvas(canvas) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext("webgl");
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
 function generateElipseControlPoints(numPoints, controlPoints) {
-  // Define o intervalo para t: de 0 a 2 * PI, dividido em numPoints
-  step = (2.0 * 3.14159) / (numPoints - 1.0);
+  const step = (2.0 * 3.14159) / (numPoints - 1.0);
+  const a = 2;
+  const b = 1;
 
-  //let scale = 1;
-  let a = 2;
-  let b = 1;
-
-  for (let i = 0; i < numPoints - 1; i++) {
-    let t = i * step;
-
-    // Calcula x(t) e y(t) usando as fórmulas paramétricas
-    //x = (scale * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
-    //y = (scale * Math.sin(t) * Math.cos(t)) / (Math.sin(t) ** 2 + 1);
-
-    x = a * Math.cos(t);
-    y = b * Math.sin(t);
-
-    // Aumenta o X e Y para a curva ficar maior e melhor de visualizar
-    x *= 2.0;
-    y *= 2.0;
-
-    point = vec3.create();
-    vec3.set(point, x, y, 0.0);
-
-    // Adiciona o ponto ao vetor de pontos de controle
+  for (let i = 0; i < numPoints; i++) {
+    const t = i * step;
+    const x = a * Math.cos(t);
+    const y = b * Math.sin(t);
+    const point = vec3.fromValues(x, y, 0.0);
     controlPoints.push(point);
   }
-  controlPoints.push(controlPoints[0]);
 }
 
 function initializeBernsteinMatrix(matrix) {
