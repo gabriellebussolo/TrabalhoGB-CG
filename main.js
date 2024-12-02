@@ -442,9 +442,9 @@ document.addEventListener("DOMContentLoaded", () => {
       cameraViewX,
       cameraViewY,
       cameraViewZ,
-      45,
-      0.1,
-      100.0,
+      fov,
+      zNear,
+      zFar,
       selectedObject
     );
     gl.useProgram(programInfo.program);
